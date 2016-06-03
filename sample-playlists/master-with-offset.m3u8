@@ -1,0 +1,16 @@
+#EXTM3U
+#EXT-X-START:TIME-OFFSET=20.000
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=181000,RESOLUTION=320x180,CODECS="avc1.66.30, mp4a.40.2",CLOSED-CAPTIONS=NONE
+http://hls.tagesschau.de/i/video/2015/0902/TV-20150902-1214-0601.,webs,websm,webm,webml,webl,webxl,.h264.mp4.csmil/index_0_av.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=318000,RESOLUTION=480x270,CODECS="avc1.66.30, mp4a.40.2",CLOSED-CAPTIONS=NONE
+http://hls.tagesschau.de/i/video/2015/0902/TV-20150902-1214-0601.,webs,websm,webm,webml,webl,webxl,.h264.mp4.csmil/index_1_av.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=592000,RESOLUTION=512x288,CODECS="avc1.77.30, mp4a.40.2",CLOSED-CAPTIONS=NONE
+http://hls.tagesschau.de/i/video/2015/0902/TV-20150902-1214-0601.,webs,websm,webm,webml,webl,webxl,.h264.mp4.csmil/index_2_av.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1179000,RESOLUTION=640x360,CODECS="avc1.77.30, mp4a.40.2",CLOSED-CAPTIONS=NONE
+http://hls.tagesschau.de/i/video/2015/0902/TV-20150902-1214-0601.,webs,websm,webm,webml,webl,webxl,.h264.mp4.csmil/index_3_av.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1915000,RESOLUTION=960x540,CODECS="avc1.77.30, mp4a.40.2",CLOSED-CAPTIONS=NONE
+http://hls.tagesschau.de/i/video/2015/0902/TV-20150902-1214-0601.,webs,websm,webm,webml,webl,webxl,.h264.mp4.csmil/index_4_av.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=3404000,RESOLUTION=1280x720,CODECS="avc1.77.30, mp4a.40.2",CLOSED-CAPTIONS=NONE
+http://hls.tagesschau.de/i/video/2015/0902/TV-20150902-1214-0601.,webs,websm,webm,webml,webl,webxl,.h264.mp4.csmil/index_5_av.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=55000,CODECS="mp4a.40.2",CLOSED-CAPTIONS=NONE
+http://hls.tagesschau.de/i/video/2015/0902/TV-20150902-1214-0601.,webs,websm,webm,webml,webl,webxl,.h264.mp4.csmil/index_0_a.m3u8
