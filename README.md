@@ -16,11 +16,11 @@ And add the crate to `lib.rs`
 extern crate m3u8_rs;
 ```
 
-Also available on [crates.io]()
+Also available on [crates.io](https://crates.io/crates/m3u8-rs)
 
 # Documentation
 
-Available [here]()
+Available [here](https://rutgersc.github.io/doc/m3u8_rs/index.html)
 
 # Examples
 
