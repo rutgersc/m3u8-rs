@@ -201,7 +201,7 @@ named!(pub is_master_playlist_tag_line(&[u8]) -> Option<(bool, String)>,
 
 pub fn parse_master_playlist_tags(input: &[u8]) -> IResult<&[u8], Vec<MasterPlaylistTag>> {
     chain!(input,
-        mut tags: many0!(chain!(m:master_playlist_tag ~ multispace?, || m)) ~ eof,
+        mut tags: many0!(chain!(m:master_playlist_tag ~ multispace?, || m)) ~ eof?,
         || { tags.reverse(); tags }
     )
 }
@@ -273,7 +273,7 @@ named!(pub session_key_tag<SessionKey>,
 
 pub fn parse_media_playlist_tags(input: &[u8]) -> IResult<&[u8], Vec<MediaPlaylistTag>> {
     chain!(input,
-        mut tags: many0!(chain!(m:media_playlist_tag ~ multispace?, || m)) ~ eof,
+        mut tags: many0!(chain!(m:media_playlist_tag ~ multispace?, || m)) ~ eof?,
         || { tags.reverse(); tags }
     )
 }

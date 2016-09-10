@@ -49,11 +49,6 @@ fn print_parse_playlist_test(playlist_name: &str) -> bool {
 }
 
 #[test]
-fn playlis_master_usher_result() {
-    assert!(print_parse_playlist_test("master-usher_result.m3u8"));
-}
-
-#[test]
 fn playlist_master_with_alternatives() {
     assert!(print_parse_playlist_test("master-with-alternatives.m3u8"));
 }
@@ -81,6 +76,19 @@ fn playlist_media_without_segments() {
 }
 
 // -----------------------------------------------------------------------------------------------
+// Playlist with no newline end
+
+#[test]
+fn playlist_not_ending_in_newline_master() {
+    assert!(print_parse_playlist_test("master-not-ending-in-newline.m3u8"));
+}
+
+#[test]
+fn playlist_not_ending_in_newline_media() {
+    assert!(print_parse_playlist_test("media-not-ending-in-newline.m3u8"));
+}
+
+// -----------------------------------------------------------------------------------------------
 // Playlist type detection tests
 
 #[test]
@@ -90,13 +98,13 @@ fn playlist_type_is_master() {
     assert_eq!(true, result);
 }
 
-#[test]
-fn playlist_type_with_unkown_tag() {
-    let input = get_sample_playlist("master-usher_result.m3u8");
-    let result = is_master_playlist(input.as_bytes());
-    println!("Playlist_type_with_unkown_tag is master playlist: {:?}", result);
-    assert_eq!(true, result);
-}
+// #[test]
+// fn playlist_type_with_unkown_tag() {
+//     let input = get_sample_playlist("!!");
+//     let result = is_master_playlist(input.as_bytes());
+//     println!("Playlist_type_with_unkown_tag is master playlist: {:?}", result);
+//     assert_eq!(true, result);
+// }
 
 #[test]
 fn playlist_types() {
