@@ -384,7 +384,7 @@ named!(pub m3u_tag<String>,
 named!(pub version_tag<usize>,
     chain!(
         tag!("#EXT-X-VERSION:") ~ version: map_res!(digit, str::from_utf8),
-        || version.parse().unwrap() //TODO: or return a default value?
+        || version.parse().unwrap_or_default()
     )
 );
 
