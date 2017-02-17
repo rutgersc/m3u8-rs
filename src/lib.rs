@@ -49,6 +49,36 @@
 //! }
 //!
 //! ```
+//!
+//! Creating a playlist and writing it back to a vec/file
+//!
+//! ```
+//!
+//! let playlist = MediaPlaylist { 
+//!     version: 6,
+//!     target_duration: 3.0,
+//!     media_sequence: 338559,
+//!     discontinuity_sequence: 1234,
+//!     end_list: true,
+//!     playlist_type: Some(MediaPlaylistType::Vod),
+//!     segments: vec![
+//!         MediaSegment {
+//!             uri: "20140311T113819-01-338559live.ts".into(),
+//!             duration: 2.002,
+//!             title: Some("title".into()),
+//!             ..Default::default()
+//!         },
+//!     ],
+//!     ..Default::default()
+//! };
+//! 
+//! let mut v: Vec<u8> = Vec::new();
+//! playlist_original.write_to(&mut v).unwrap();
+//! 
+//! let mut file = std::fs::File::open("playlist.m3u8").unwrap();
+//! playlist_original.write_to(&mut file).unwrap();
+//!
+//! ```
 
 #[macro_use]
 extern crate nom;
