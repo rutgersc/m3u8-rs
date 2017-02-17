@@ -6,8 +6,8 @@
 //! Parsing a playlist and let the parser figure out if it's a media or master playlist.
 //!
 //! ```
-//! extern crate m3u8_rs;
 //! extern crate nom;
+//! extern crate m3u8_rs;
 //! use m3u8_rs::playlist::Playlist;
 //! use nom::IResult;
 //! use std::io::Read;
@@ -18,15 +18,15 @@
 //!
 //! // Option 1: fn parse_playlist_res(input) -> Result<Playlist, _>
 //! match m3u8_rs::parse_playlist_res(&bytes) {
-//!     Ok(Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{}", pl),
-//!     Ok(Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{}", pl),
+//!     Ok(Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{:?}", pl),
+//!     Ok(Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{:?}", pl),
 //!     Err(e) => println!("Error: {:?}", e)
 //! }
 //!
 //! // Option 2: fn parse_playlist(input) -> IResult<_, Playlist, _>
 //! match m3u8_rs::parse_playlist(&bytes) {
-//!     IResult::Done(i, Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{}", pl),
-//!     IResult::Done(i, Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{}", pl),
+//!     IResult::Done(i, Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{:?}", pl),
+//!     IResult::Done(i, Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{:?}", pl),
 //!     IResult::Error(e) =>  panic!("Parsing error: \n{}", e),
 //!     IResult::Incomplete(e) => panic!("Parsing error: \n{:?}", e),
 //! }
@@ -35,8 +35,8 @@
 //! Parsing a master playlist directly
 //!
 //! ```
-//! extern crate m3u8_rs;
 //! extern crate nom;
+//! extern crate m3u8_rs;
 //! use std::io::Read;
 //! use nom::IResult;
 //!
@@ -85,8 +85,8 @@ use playlist::*;
 /// };
 ///
 /// match playlist {
-///     Playlist::MasterPlaylist(pl) => println!("Master playlist:\n{}", pl),
-///     Playlist::MediaPlaylist(pl) => println!("Media playlist:\n{}", pl),
+///     Playlist::MasterPlaylist(pl) => println!("Master playlist:\n{:?}", pl),
+///     Playlist::MediaPlaylist(pl) => println!("Media playlist:\n{:?}", pl),
 /// }
 pub fn parse_playlist(input: &[u8]) -> IResult<&[u8], Playlist> {
     match is_master_playlist(input) {
@@ -110,8 +110,8 @@ pub fn parse_playlist(input: &[u8]) -> IResult<&[u8], Playlist> {
 /// let parsed = m3u8_rs::parse_playlist_res(&bytes);
 ///
 /// match parsed {
-///     Ok(Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{}", pl),
-///     Ok(Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{}", pl),
+///     Ok(Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{:?}", pl),
+///     Ok(Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{:?}", pl),
 ///     Err(e) => println!("Error: {:?}", e)
 /// }
 /// ```
@@ -128,9 +128,27 @@ pub fn parse_master_playlist(input: &[u8]) -> IResult<&[u8], MasterPlaylist> {
     parse_master_playlist_tags(input).map(MasterPlaylist::from_tags)
 }
 
+/// Parse input as a master playlist
+pub fn parse_master_playlist_res(input: &[u8]) -> Result<MasterPlaylist, IResult<&[u8], MasterPlaylist>> {
+    let parse_result = parse_master_playlist(input);
+    match parse_result {
+        IResult::Done(_, playlist) => Ok(playlist),
+        _ => Err(parse_result),
+    }
+}
+
 /// Parse input as a media playlist
 pub fn parse_media_playlist(input: &[u8]) -> IResult<&[u8], MediaPlaylist> {
     parse_media_playlist_tags(input).map(MediaPlaylist::from_tags)
+}
+
+/// Parse input as a media playlist
+pub fn parse_media_playlist_res(input: &[u8]) -> Result<MediaPlaylist, IResult<&[u8], MediaPlaylist>> {
+    let parse_result = parse_media_playlist(input);
+    match parse_result {
+        IResult::Done(_, playlist) => Ok(playlist),
+        _ => Err(parse_result),
+    }
 }
 
 /// When a media tag or no master tag is found, this returns false.
@@ -302,19 +320,21 @@ pub fn media_playlist_tag(input: &[u8]) -> IResult<&[u8], MediaPlaylistTag> {
     | map!(chain!(tag!("#EXT-X-TARGETDURATION:") ~ n:float,||n), MediaPlaylistTag::TargetDuration)
     | map!(chain!(tag!("#EXT-X-MEDIA-SEQUENCE:") ~ n:number,||n), MediaPlaylistTag::MediaSequence)
     | map!(chain!(tag!("#EXT-X-DISCONTINUITY-SEQUENCE:") ~ n:number,||n), MediaPlaylistTag::DiscontinuitySequence)
-    | map!(playlist_type_tag, MediaPlaylistTag::PlaylistType)
+    | map!(chain!(tag!("#EXT-X-PLAYLIST-TYPE:") ~ t:playlist_type, ||t), MediaPlaylistTag::PlaylistType)
     | map!(tag!("#EXT-X-I-FRAMES-ONLY"), |_| MediaPlaylistTag::IFramesOnly)
     | map!(start_tag, MediaPlaylistTag::Start)
     | map!(tag!("#EXT-X-INDEPENDENT-SEGMENTS"), |_| MediaPlaylistTag::IndependentSegments)
+    | map!(tag!("#EXT-X-ENDLIST"), |_| MediaPlaylistTag::EndList)
 
     | map!(media_segment_tag, MediaPlaylistTag::Segment)
     )
 }
 
-named!(pub playlist_type_tag<MediaPlaylistType>,
+named!(pub playlist_type<MediaPlaylistType>,
     map_res!(
-        map_res!(tag!("#EXT-X-PLAYLIST-TYPE:"), str::from_utf8),
-        MediaPlaylistType::from_str)
+        map_res!(take_until_either_and_consume!("\r\n"), str::from_utf8), 
+        MediaPlaylistType::from_str
+    )
 );
 
 // -----------------------------------------------------------------------------------------------
@@ -339,7 +359,7 @@ pub enum SegmentTag {
 pub fn media_segment_tag(input: &[u8]) -> IResult<&[u8], SegmentTag> {
     alt!(input,
       map!(chain!(tag!("#EXTINF:") ~ e:duration_title_tag,||e), |(a,b)| SegmentTag::Extinf(a,b))
-    | map!(chain!(tag!("#EXT-X-BYTERANGE:") ~ r:byterange_val, || r), SegmentTag::ByteRange)
+    | map!(chain!(tag!("#EXT-X-BYTERANGE:") ~ r:byte_range_val, || r), SegmentTag::ByteRange)
     | map!(tag!("#EXT-X-DISCONTINUITY"), |_| SegmentTag::Discontinuity)
     | map!(chain!(tag!("#EXT-X-KEY:") ~ k:key, || k), SegmentTag::Key)
     | map!(chain!(tag!("#EXT-X-MAP:") ~ m:map, || m), SegmentTag::Map)
@@ -357,7 +377,7 @@ named!(pub duration_title_tag<(f32, Option<String>)>,
     chain!(
           duration: float
         ~ tag!(",")?
-        ~ title: opt!(map_res!(take_until_and_consume!("\r\n"), from_utf8_slice))
+        ~ title: opt!(map_res!(take_until_either_and_consume!("\r\n,"), from_utf8_slice))
         ~ tag!(",")?
         ,
         || (duration, title)
@@ -366,12 +386,7 @@ named!(pub duration_title_tag<(f32, Option<String>)>,
 
 named!(pub key<Key>, map!(key_value_pairs, Key::from_hashmap));
 
-named!(pub map<Map>,
-    chain!(
-        uri: quoted ~ range: opt!(chain!(char!(',') ~ b:byterange_val,||b )),
-        || Map { uri: uri, byterange: range }
-    )
-);
+named!(pub map<Map>, map!(key_value_pairs, Map::from_hashmap));
 
 // -----------------------------------------------------------------------------------------------
 // Basic tags
@@ -450,7 +465,7 @@ named!(pub number<i32>,
     map_res!(map_res!(digit, str::from_utf8), str::FromStr::from_str)
 );
 
-named!(pub byterange_val<ByteRange>,
+named!(pub byte_range_val<ByteRange>,
     chain!(
           n: number
         ~ o: opt!(chain!(char!('@') ~ n:number,||n))
@@ -462,7 +477,7 @@ named!(pub byterange_val<ByteRange>,
 named!(pub float<f32>,
     chain!(
           left: map_res!(digit, str::from_utf8)
-        ~ right_opt: opt!(chain!(char!('.') ~ d:map_res!(digit, str::from_utf8),|| d )),
+        ~ right_opt: opt!(chain!(char!('.') ~ d:map_res!(digit, str::from_utf8),|| d)),
         ||
         match right_opt {
             Some(right) => {

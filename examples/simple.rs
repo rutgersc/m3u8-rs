@@ -12,8 +12,8 @@ fn main() {
     let parsed = m3u8_rs::parse_playlist_res(&bytes);
 
     match parsed {
-        Ok(Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{}", pl),
-        Ok(Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{}", pl),
+        Ok(Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{:?}", pl),
+        Ok(Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{:?}", pl),
         Err(e) => println!("Error: {:?}", e)
     }
 }

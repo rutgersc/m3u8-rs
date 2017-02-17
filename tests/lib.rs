@@ -7,7 +7,9 @@ extern crate m3u8_rs;
 use std::fs;
 use std::path;
 use m3u8_rs::*;
+use m3u8_rs::playlist::*;
 use std::io::Read;
+use std::fs::File;
 use nom::*;
 use std::collections::HashMap;
 
@@ -34,12 +36,12 @@ fn get_sample_playlist(name: &str) -> String {
 // Playlist
 
 fn print_parse_playlist_test(playlist_name: &str) -> bool {
-    let input = get_sample_playlist(playlist_name);
+    let input: String = get_sample_playlist(playlist_name);
     println!("Parsing playlist file: {:?}", playlist_name);
     let parsed = parse_playlist(input.as_bytes());
 
     if let IResult::Done(i,o) = parsed {
-        println!("{}", o);
+        println!("{:?}", o);
         true
     }
     else {
@@ -224,4 +226,167 @@ fn float_should_ignore_trailing_dot() {
         float(b"33.rest"),
         IResult::Done(".rest".as_bytes(), 33f32)
     );
+}
+
+#[test]
+fn parse_duration_title() {
+    assert_eq!(
+        duration_title_tag(b"2.002,title\nrest"),
+        IResult::Done("rest".as_bytes(), (2.002f32, Some("title".to_string())))
+    );
+}
+
+// -----------------------------------------------------------------------------------------------
+// Creating playlists
+
+fn print_create_and_parse_playlist(playlist_original: &mut Playlist) -> Playlist {
+    let mut utf8: Vec<u8> = Vec::new();
+    playlist_original.write_to(&mut utf8).unwrap();
+
+    let m3u8_str: &str = std::str::from_utf8(&utf8).unwrap();
+
+    let playlist_parsed = match *playlist_original {
+        Playlist::MasterPlaylist(_) => 
+            Playlist::MasterPlaylist(parse_master_playlist_res(m3u8_str.as_bytes()).unwrap()),
+        Playlist::MediaPlaylist(_) => 
+            Playlist::MediaPlaylist(parse_media_playlist_res(m3u8_str.as_bytes()).unwrap()),
+    };
+
+    print!("\n\n---- utf8 result\n\n{}", m3u8_str);
+    print!("\n---- Original\n\n{:?}", playlist_original);
+    print!("\n\n---- Parsed\n\n{:?}\n\n", playlist_parsed);
+
+    playlist_parsed
+}
+
+#[test]
+fn create_and_parse_master_playlist_empty() {
+    let mut playlist_original = Playlist::MasterPlaylist(MasterPlaylist { ..Default::default() });
+    let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
+    assert_eq!(playlist_original, playlist_parsed);
+}
+
+#[test]
+fn create_and_parse_master_playlist_full() {
+
+    let mut playlist_original = Playlist::MasterPlaylist(MasterPlaylist {
+        version: 6,
+        variants: vec![
+            VariantStream {
+                is_i_frame: false,
+                uri: "masterplaylist-uri".into(),
+                bandwidth: "10010010".into(),
+                average_bandwidth: Some("10010010".into()),
+                codecs: "TheCODEC".into(),
+                resolution: Some("1000x3000".into()),
+                frame_rate: Some("60".into()),
+                audio: Some("audio".into()),
+                video: Some("video".into()),
+                subtitles: Some("subtitles".into()),
+                closed_captions: Some("closed_captions".into()),
+                alternatives: vec! [
+                    AlternativeMedia {
+                        media_type: AlternativeMediaType::Audio,
+                        uri: Some("alt-media-uri".into()),
+                        group_id: "group-id".into(),
+                        language: Some("language".into()),
+                        assoc_language: Some("assoc-language".into()),
+                        name: "Xmedia".into(),
+                        default: true, // Its absence indicates an implicit value of NO
+                        autoselect: true, // Its absence indicates an implicit value of NO
+                        forced: true, // Its absence indicates an implicit value of NO
+                        instream_id: Some("instream_id".into()),
+                        characteristics: Some("characteristics".into()),
+                    }
+                ]
+            }
+        ],
+        session_data: Some(SessionData {
+            data_id: "****".into(),
+            value: "%%%%".into(),
+            uri: "++++".into(),
+            language: Some("SessionDataLanguage".into()),    
+        }),  
+        session_key: Some(SessionKey(Key {
+            method: "AES-128".into(),
+            uri: Some("https://secure.domain.com".into()),
+            iv: Some("0xb059217aa2649ce170b734".into()),
+            keyformat: Some("xXkeyformatXx".into()),
+            keyformatversions: Some("xXFormatVers".into()),
+        })),
+        start: Some(Start {
+            time_offset: "123123123".into(),
+            precise: Some("YES".into()),
+        }),
+        independent_segments: true,
+    });
+    let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
+    assert_eq!(playlist_original, playlist_parsed);
+}
+
+#[test]
+fn create_and_parse_media_playlist_empty() {
+    let mut playlist_original = Playlist::MediaPlaylist(MediaPlaylist { ..Default::default() });
+    let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
+    assert_eq!(playlist_original, playlist_parsed);
+}
+
+#[test]
+fn create_and_parse_media_playlist_single_segment() {
+    let mut playlist_original = Playlist::MediaPlaylist(MediaPlaylist { 
+        segments: vec![
+            MediaSegment {
+                uri: "20140311T113819-01-338559live.ts".into(),
+                duration: 2.002,
+                title: Some("hey".into()),
+                ..Default::default()
+            },
+        ],
+         ..Default::default()
+    });
+    let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
+    assert_eq!(playlist_original, playlist_parsed);
+}
+
+#[test]
+fn create_and_parse_media_playlist_full() {
+
+    let mut playlist_original = Playlist::MediaPlaylist(MediaPlaylist {
+        version: 4,
+        target_duration: 3.0,
+        media_sequence: 338559,
+        discontinuity_sequence: 1234,
+        end_list: true,
+        playlist_type: Some(MediaPlaylistType::Vod),
+        i_frames_only: true,
+        start: Some(Start {
+            time_offset: "9999".into(),
+            precise: Some("YES".into()),
+        }),
+        independent_segments: true,     
+        segments: vec![
+            MediaSegment {
+                uri: "20140311T113819-01-338559live.ts".into(),
+                duration: 2.002,
+                title: Some("338559".into()),
+                byte_range: Some(ByteRange::from("137116@497036")),
+                discontinuity: true,
+                key: Some(Key {
+                    method: "AES-128".into(),
+                    uri: Some("https://secure.domain.com".into()),
+                    iv: Some("0xb059217aa2649ce170b734".into()),
+                    keyformat: Some("xXkeyformatXx".into()),
+                    keyformatversions: Some("xXFormatVers".into()),
+                }), 
+                map: Some(Map {
+                    uri: "www.map-uri.com".into(),
+                    byte_range: Some(ByteRange::from("137116@497036")),
+                }),
+                program_date_time: Some("broodlordinfestorgg".into()),
+                daterange: None,
+            },
+        ],
+    });
+    let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
+    assert_eq!(playlist_original, playlist_parsed);
 }

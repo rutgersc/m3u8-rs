@@ -19,8 +19,8 @@ fn main() {
     };
 
     match playlist {
-        Playlist::MasterPlaylist(pl) => println!("Master playlist:\n{}", pl),
-        Playlist::MediaPlaylist(pl) => println!("Media playlist:\n{}", pl),
+        Playlist::MasterPlaylist(pl) => println!("Master playlist:\n{:?}", pl),
+        Playlist::MediaPlaylist(pl) => println!("Media playlist:\n{:?}", pl),
     }
 }
 
@@ -32,8 +32,8 @@ fn main_alt() {
     let parsed = m3u8_rs::parse_playlist(&bytes);
 
     match parsed {
-        IResult::Done(i, Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{}", pl),
-        IResult::Done(i, Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{}", pl),
+        IResult::Done(i, Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{:?}", pl),
+        IResult::Done(i, Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{:?}", pl),
         IResult::Error(e) =>  panic!("Parsing error: \n{}", e),
         IResult::Incomplete(e) => panic!("Parsing error: \n{:?}", e),
     }
