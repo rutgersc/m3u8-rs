@@ -420,7 +420,7 @@ impl MediaPlaylist {
         let mut map = None;
 
         while let Some(tag) = tags.pop() {
-            println!("Tag: {:?}\n", &tag);
+            
             match tag {
                 MediaPlaylistTag::Version(v) => {
                     media_playlist.version = v;
