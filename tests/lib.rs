@@ -14,7 +14,8 @@ use nom::*;
 use std::collections::HashMap;
 
 fn all_sample_m3u_playlists() -> Vec<path::PathBuf> {
-    fs::read_dir("sample-playlists\\").unwrap()
+    let path: std::path::PathBuf = ["sample-playlists"].iter().collect();
+    fs::read_dir(path.to_str().unwrap()).unwrap()
         .filter_map(Result::ok)
         .map(|dir| dir.path())
         .filter(|path| path.extension().map_or(false, |ext| ext == "m3u8"))
@@ -23,13 +24,14 @@ fn all_sample_m3u_playlists() -> Vec<path::PathBuf> {
 
 fn getm3u(path: &str) -> String {
     let mut buf = String::new();
-    let mut file = fs::File::open(path).expect("Can't find m3u8.");
+    let mut file = fs::File::open(path).expect(&format!("Can't find m3u8: {}", path));
     let u = file.read_to_string(&mut buf).expect("Can't read file");
     buf
 }
 
 fn get_sample_playlist(name: &str) -> String {
-    getm3u(&(String::from("sample-playlists\\") + name))
+    let path: std::path::PathBuf = ["sample-playlists", name].iter().collect();
+    getm3u(path.to_str().unwrap())
 }
 
 // -----------------------------------------------------------------------------------------------
