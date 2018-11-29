@@ -38,7 +38,7 @@ macro_rules! bool_default_false {
 /// identify Media Segments.  A Playlist is a Master Playlist if all URI
 /// lines in the Playlist identify Media Playlists.  A Playlist MUST be
 /// either a Media Playlist or a Master Playlist; all other Playlists are invalid.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Playlist {
     MasterPlaylist(MasterPlaylist),
     MediaPlaylist(MediaPlaylist),
@@ -61,7 +61,7 @@ impl Playlist {
 /// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4)
 /// provides a set of Variant Streams, each of which
 /// describes a different version of the same content.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct MasterPlaylist {
     pub version: usize,
     pub variants: Vec<VariantStream>,
@@ -163,7 +163,7 @@ impl MasterPlaylist {
 /// Clients should switch between different Variant Streams to adapt to
 /// network conditions.  Clients should choose Renditions based on user
 /// preferences.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct VariantStream {
     pub is_i_frame: bool,
     pub uri: String,
@@ -242,7 +242,7 @@ impl VariantStream {
 /// Media Playlists that contain English, French and Spanish Renditions
 /// of the same presentation.  Or two EXT-X-MEDIA tags can be used to
 /// identify video-only Media Playlists that show two different camera angles.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct AlternativeMedia {
     // <attribute-list>
     pub media_type: AlternativeMediaType,
@@ -295,7 +295,7 @@ impl AlternativeMedia {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum AlternativeMediaType {
     Audio,
     Video,
@@ -337,7 +337,7 @@ impl fmt::Display for AlternativeMediaType {
 
 /// [`#EXT-X-SESSION-KEY:<attribute-list>`]
 /// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.5)
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct SessionKey(pub Key);
 
 impl SessionKey {
@@ -353,7 +353,7 @@ impl SessionKey {
 /// The EXT-X-SESSION-KEY tag allows encryption keys from Media Playlists
 /// to be specified in a Master Playlist.  This allows the client to
 /// preload these keys without having to read the Media Playlist(s) first.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct SessionData {
     pub data_id: String,
     pub value: String,
@@ -389,7 +389,7 @@ impl SessionData {
 /// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.3)
 /// contains a list of Media Segments, which when played
 /// sequentially will play the multimedia presentation.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct MediaPlaylist {
     pub version: usize,
     /// `#EXT-X-TARGETDURATION:<s>`
@@ -525,7 +525,7 @@ impl MediaPlaylist {
 
 /// [`#EXT-X-PLAYLIST-TYPE:<EVENT|VOD>`]
 /// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.3.5)
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum MediaPlaylistType {
     Event,
     Vod,
@@ -564,7 +564,7 @@ impl Default for MediaPlaylistType {
 
 /// A [Media Segment](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-3)
 /// is specified by a URI and optionally a byte range.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct MediaSegment {
     pub uri: String,
     /// `#EXTINF:<duration>,[<title>]`
@@ -636,7 +636,7 @@ impl MediaSegment {
 /// KEYFORMAT attribute (or the end of the Playlist file).  Two or more
 /// EXT-X-KEY tags with different KEYFORMAT attributes MAY apply to the
 /// same Media Segment if they ultimately produce the same decryption key.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Key {
     pub method: String,
     pub uri: Option<String>,
@@ -675,7 +675,7 @@ impl Key {
 /// It applies to every Media Segment that appears after it in the
 /// Playlist until the next EXT-X-MAP tag or until the end of the
 /// playlist.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Map {
     pub uri: String,
     pub byte_range: Option<ByteRange>,
@@ -706,7 +706,7 @@ impl Map {
 /// The EXT-X-BYTERANGE tag indicates that a Media Segment is a sub-range
 /// of the resource identified by its URI.  It applies only to the next
 /// URI line that follows it in the Playlist.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct ByteRange {
     pub length: i32,
     pub offset: Option<i32>,
@@ -745,7 +745,7 @@ impl<'a> From<&'a str> for ByteRange {
 /// The EXT-X-DATERANGE tag associates a Date Range (i.e. a range of time
 /// defined by a starting and ending date) with a set of attribute /
 /// value pairs.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct DateRange {
     pub id: String,
     pub class: Option<String>,
@@ -767,7 +767,7 @@ pub struct DateRange {
 /// The EXT-X-START tag indicates a preferred point at which to start
 /// playing a Playlist. By default, clients SHOULD start playback at
 /// this point when beginning a playback session.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Start {
     pub time_offset: String,
     pub precise: Option<String>,
@@ -789,7 +789,7 @@ impl Start {
 }
 
 /// A simple `#EXT-` tag
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ExtTag {
     pub tag: String,
     pub rest: String,
