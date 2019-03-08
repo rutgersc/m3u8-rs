@@ -225,7 +225,7 @@ named!(pub is_master_playlist_tag_line(&[u8]) -> Option<(bool, String)>,
         tag: opt!(alt!(
                   map!(tag!("#EXT-X-STREAM-INF"),         |t| (true, t))
                 | map!(tag!("#EXT-X-I-FRAME-STREAM-INF"), |t| (true, t))
-                | map!(tag!("#EXT-X-MEDIA"),              |t| (true, t))
+                | map!(terminated!(tag!("#EXT-X-MEDIA"), is_not!("-")), |t| (true, t)) // terminated!() to prevent matching with #EXT-X-MEDIA-SEQUENCE for which we have a separate pattern below
                 | map!(tag!("#EXT-X-SESSION-KEY"),        |t| (true, t))
                 | map!(tag!("#EXT-X-SESSION-DATA"),       |t| (true, t))
 
