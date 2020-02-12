@@ -88,7 +88,6 @@
 //!
 //! ```
 
-#[macro_use]
 extern crate nom;
 
 pub mod playlist;
@@ -129,8 +128,9 @@ use playlist::*;
 /// }
 pub fn parse_playlist(input: &[u8]) -> IResult<&[u8], Playlist> {
     match is_master_playlist(input) {
-        true => parse_master_playlist(input).map(Playlist::MasterPlaylist),
-        false => parse_media_playlist(input).map(Playlist::MediaPlaylist),
+        // XXX: get rid of the local `map` to be able to `use` this
+        true => nom::combinator::map(parse_master_playlist, Playlist::MasterPlaylist)(input),
+        false => nom::combinator::map(parse_media_playlist, Playlist::MediaPlaylist)(input),
     }
 }
 
@@ -157,35 +157,35 @@ pub fn parse_playlist(input: &[u8]) -> IResult<&[u8], Playlist> {
 pub fn parse_playlist_res(input: &[u8]) -> Result<Playlist, IResult<&[u8], Playlist>> {
     let parse_result = parse_playlist(input);
     match parse_result {
-        IResult::Done(_, playlist) => Ok(playlist),
+        IResult::Ok((_, playlist)) => Ok(playlist),
         _ => Err(parse_result),
     }
 }
 
 /// Parse input as a master playlist
 pub fn parse_master_playlist(input: &[u8]) -> IResult<&[u8], MasterPlaylist> {
-    parse_master_playlist_tags(input).map(MasterPlaylist::from_tags)
+    nom::combinator::map(parse_master_playlist_tags, MasterPlaylist::from_tags)(input)
 }
 
 /// Parse input as a master playlist
 pub fn parse_master_playlist_res(input: &[u8]) -> Result<MasterPlaylist, IResult<&[u8], MasterPlaylist>> {
     let parse_result = parse_master_playlist(input);
     match parse_result {
-        IResult::Done(_, playlist) => Ok(playlist),
+        IResult::Ok((_, playlist)) => Ok(playlist),
         _ => Err(parse_result),
     }
 }
 
 /// Parse input as a media playlist
 pub fn parse_media_playlist(input: &[u8]) -> IResult<&[u8], MediaPlaylist> {
-    parse_media_playlist_tags(input).map(MediaPlaylist::from_tags)
+    nom::combinator::map(parse_media_playlist_tags, MediaPlaylist::from_tags)(input)
 }
 
 /// Parse input as a media playlist
 pub fn parse_media_playlist_res(input: &[u8]) -> Result<MediaPlaylist, IResult<&[u8], MediaPlaylist>> {
     let parse_result = parse_media_playlist(input);
     match parse_result {
-        IResult::Done(_, playlist) => Ok(playlist),
+        IResult::Ok((_, playlist)) => Ok(playlist),
         _ => Err(parse_result),
     }
 }
@@ -210,7 +210,7 @@ pub fn contains_master_tag(input: &[u8]) -> Option<(bool, String)> {
 
     while is_master_opt == None {
         match is_master_playlist_tag_line(current_input) {
-            IResult::Done(rest, result) => {
+            IResult::Ok((rest, result)) => {
                 current_input = rest;
                 is_master_opt = result; // result can be None (no media or master tag found)
             }

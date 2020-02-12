@@ -732,7 +732,7 @@ impl From<String> for ByteRange {
 impl<'a> From<&'a str> for ByteRange {
     fn from(s: &'a str) -> Self {
         match byte_range_val(s.as_bytes()) {
-            IResult::Done(_, br) => br,
+            IResult::Ok((_, br)) => br,
             _ => panic!("Should not happen"),
         }
     }
