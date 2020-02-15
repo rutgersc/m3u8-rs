@@ -1,6 +1,5 @@
 #![allow(unused_variables, unused_imports, dead_code)]
 
-#[macro_use]
 extern crate nom;
 extern crate m3u8_rs;
 
