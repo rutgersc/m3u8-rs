@@ -278,7 +278,7 @@ fn create_and_parse_master_playlist_full() {
                 uri: "masterplaylist-uri".into(),
                 bandwidth: "10010010".into(),
                 average_bandwidth: Some("10010010".into()),
-                codecs: "TheCODEC".into(),
+                codecs: Some("TheCODEC".into()),
                 resolution: Some("1000x3000".into()),
                 frame_rate: Some("60".into()),
                 audio: Some("audio".into()),

@@ -171,7 +171,7 @@ pub struct VariantStream {
     // <attribute-list>
     pub bandwidth: String,
     pub average_bandwidth: Option<String>,
-    pub codecs: String,
+    pub codecs: Option<String>,
     pub resolution: Option<String>,
     pub frame_rate: Option<String>,
     pub audio: Option<String>,
@@ -190,7 +190,7 @@ impl VariantStream {
             uri: attrs.remove("URI").unwrap_or_else(String::new),
             bandwidth: attrs.remove("BANDWIDTH").unwrap_or_else(String::new),
             average_bandwidth: attrs.remove("AVERAGE-BANDWIDTH"),
-            codecs: attrs.remove("CODECS").unwrap_or_else(String::new),
+            codecs: attrs.remove("CODECS"),
             resolution: attrs.remove("RESOLUTION"),
             frame_rate: attrs.remove("FRAME-RATE"),
             audio: attrs.remove("AUDIO"),
@@ -226,7 +226,7 @@ impl VariantStream {
     fn write_stream_inf_common_attributes<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         write!(w, "BANDWIDTH={}", &self.bandwidth)?;
         write_some_attribute!(w, ",AVERAGE-BANDWIDTH", &self.average_bandwidth)?;
-        write!(w, ",CODECS=\"{}\"", &self.codecs)?;
+        write_some_attribute_quoted!(w, ",CODECS", &self.codecs)?;
         write_some_attribute!(w, ",RESOLUTION", &self.resolution)?;
         write_some_attribute!(w, ",FRAME-RATE", &self.frame_rate)?;
         write_some_attribute_quoted!(w, ",VIDEO", &self.video)
