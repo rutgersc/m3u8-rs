@@ -210,7 +210,7 @@ impl VariantStream {
         if self.is_i_frame {
             write!(w, "#EXT-X-I-FRAME-STREAM-INF:")?;
             self.write_stream_inf_common_attributes(w)?;
-            writeln!(w, "URI=\"{}\"", self.uri)
+            writeln!(w, ",URI=\"{}\"", self.uri)
         }
         else {
             write!(w, "#EXT-X-STREAM-INF:")?;
