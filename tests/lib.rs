@@ -391,3 +391,25 @@ fn create_and_parse_media_playlist_full() {
     let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
     assert_eq!(playlist_original, playlist_parsed);
 }
+
+//
+// Roundtrip
+
+
+#[test]
+fn parsing_write_to_should_produce_the_same_structure() {
+    for playlist in all_sample_m3u_playlists() {
+        let input = getm3u(playlist.to_str().unwrap());
+
+        let expected = parse_playlist_res(input.as_bytes()).unwrap();
+        let mut written: Vec<u8> = Vec::new();
+        expected.write_to(&mut written).unwrap();
+
+        let actual = parse_playlist_res(&written).unwrap();
+
+        assert_eq!(
+            expected, actual,
+            "\n\nFailed parser input:\n\n{}\n\nOriginal input:\n\n{}", 
+            std::str::from_utf8(&written).unwrap(), input);
+    }
+}
