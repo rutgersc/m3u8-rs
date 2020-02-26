@@ -7,7 +7,7 @@ To use this library, add the following dependency to `Cargo.toml`:
 
 ```toml
 [dependencies]
-m3u8-rs = "1.0.2"
+m3u8-rs = "1.0.6"
 ```
 
 And add the crate to `lib.rs`
