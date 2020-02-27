@@ -46,7 +46,7 @@
 //!     let mut file = std::fs::File::open("masterplaylist.m3u8").unwrap();
 //!     let mut bytes: Vec<u8> = Vec::new();
 //!     file.read_to_end(&mut bytes).unwrap();
-//!
+//!     
 //!     if let IResult::Done(_, pl) = m3u8_rs::parse_master_playlist(&bytes) {
 //!         println!("{:?}", pl);
 //!     }
@@ -61,7 +61,7 @@
 //! use m3u8_rs::playlist::{MediaPlaylist, MediaPlaylistType, MediaSegment};
 //!
 //! fn main() {
-//!     let playlist = MediaPlaylist {
+//!     let playlist = MediaPlaylist { 
 //!         version: 6,
 //!         target_duration: 3.0,
 //!         media_sequence: 338559,
@@ -78,10 +78,10 @@
 //!         ],
 //!         ..Default::default()
 //!     };
-//!
+//! 
 //!     //let mut v: Vec<u8> = Vec::new();
 //!     //playlist.write_to(&mut v).unwrap();
-//!
+//! 
 //!     //let mut file = std::fs::File::open("playlist.m3u8").unwrap();
 //!     //playlist.write_to(&mut file).unwrap();
 //! }
@@ -92,7 +92,10 @@ extern crate nom;
 
 pub mod playlist;
 
-use nom::*;
+use nom::character::complete::{digit1, multispace0, space0 };
+use nom::{IResult};
+use nom::{ delimited,none_of,peek,is_not,complete,terminated,tag,
+           alt,do_parse,opt,named,map,map_res,eof,many0,take,take_until,char};
 
 use std::str;
 use std::f32;
@@ -244,8 +247,9 @@ named!(pub is_master_playlist_tag_line(&[u8]) -> Option<(bool, String)>,
                 | map!(tag!("#EXT-X-MAP"),                    |t| (false, t))
                 | map!(tag!("#EXT-X-PROGRAM-DATE-TIME"),      |t| (false, t))
                 | map!(tag!("#EXT-X-DATERANGE"),              |t| (false, t))
-        )) >>
-        consume_line >>
+        ))
+        >> consume_line
+        >>
         ( {
             tag.map(|(a,b)| (a, from_utf8_slice(b).unwrap()))
         } )
@@ -256,12 +260,15 @@ named!(pub is_master_playlist_tag_line(&[u8]) -> Option<(bool, String)>,
 // Master Playlist Tags
 // -----------------------------------------------------------------------------------------------
 
-pub fn parse_master_playlist_tags(input: &[u8]) -> IResult<&[u8], Vec<MasterPlaylistTag>> {
+pub fn parse_master_playlist_tags(input: &[u8]) ->  IResult<&[u8], Vec<MasterPlaylistTag>> {
     do_parse!(input,
-        tags: many0!(do_parse!(m:master_playlist_tag >> opt!(character::complete::multispace1) >> (m) )) >> opt!(eof!()) >>
-        ( { tags.reverse(); tags } )
+         tags: many0!(complete!(do_parse!( m : master_playlist_tag >> multispace0 >> (m) )))
+     >>  opt!(eof!())
+     >>
+        ( {let mut tags_rev: Vec<MasterPlaylistTag> = tags; tags_rev.reverse(); tags_rev } )
     )
 }
+
 
 /// Contains all the tags required to parse a master playlist.
 #[derive(Debug)]
@@ -330,8 +337,9 @@ named!(pub session_key_tag<SessionKey>,
 
 pub fn parse_media_playlist_tags(input: &[u8]) -> IResult<&[u8], Vec<MediaPlaylistTag>> {
     do_parse!(input,
-        tags: many0!(do_parse!(m:media_playlist_tag >> opt!(character::complete::multispace1) >> (m) )) >> opt!(eof!()) >>
-        ( { tags.reverse(); tags } )
+        tags: many0!(complete!(do_parse!(m:media_playlist_tag >> multispace0 >> (m) ))) >> opt!(eof!())
+     >>
+        ( {let mut tags_rev: Vec<MediaPlaylistTag> = tags; tags_rev.reverse(); tags_rev } )
     )
 }
 
@@ -371,7 +379,11 @@ pub fn media_playlist_tag(input: &[u8]) -> IResult<&[u8], MediaPlaylistTag> {
 
 named!(pub playlist_type<MediaPlaylistType>,
     map_res!(
-        map_res!(take_until!("\r\n"), str::from_utf8),
+        do_parse!(
+            p: map_res!(is_not!("\r\n"), str::from_utf8)
+            >> take!(1)
+            >> (p)
+        ),
         MediaPlaylistType::from_str
     )
 );
@@ -416,7 +428,8 @@ named!(pub duration_title_tag<(f32, Option<String>)>,
     do_parse!(
            duration: float
         >> opt!(tag!(","))
-        >> title: opt!(map_res!(take_until!("\r\n,"), from_utf8_slice))
+        >> title: opt!(map_res!(is_not!("\r\n,"), from_utf8_slice))
+        >> take!(1)
         >> opt!(tag!(","))
         >>
         (duration, title)
@@ -432,12 +445,12 @@ named!(pub map<Map>, map!(key_value_pairs, Map::from_hashmap));
 // -----------------------------------------------------------------------------------------------
 
 named!(pub m3u_tag<String>,
-    map_res!(tag!("#EXTM3U"), from_utf8_slice)
+     map_res!(tag!("#EXTM3U"), from_utf8_slice)
 );
 
 named!(pub version_tag<usize>,
     do_parse!(
-        tag!("#EXT-X-VERSION:") >> version: map_res!(nom::character::streaming::digit1, str::from_utf8) >>
+        tag!("#EXT-X-VERSION:") >> version: map_res!(digit1, str::from_utf8) >>
         (version.parse().unwrap_or_default())
     )
 );
@@ -452,7 +465,9 @@ named!(pub ext_tag<ExtTag>,
     do_parse!(
           tag!("#EXT-")
         >> tag: map_res!(take_until!(":"), from_utf8_slice)
-        >> rest: map_res!(take_until!("\r\n"), from_utf8_slice)
+        >> take!(1)
+        >> rest: map_res!(is_not!("\r\n"), from_utf8_slice)
+        >> take!(1)
         >>
         (ExtTag { tag: tag, rest: rest })
     )
@@ -460,7 +475,8 @@ named!(pub ext_tag<ExtTag>,
 
 named!(pub comment_tag<String>,
     do_parse!(
-        tag!("#") >> text: map_res!(take_until!("\r\n"), from_utf8_slice)
+        tag!("#") >> text: map_res!(is_not!("\r\n"), from_utf8_slice)
+        >> take!(1)
         >> (text)
     )
 );
@@ -471,7 +487,7 @@ named!(pub comment_tag<String>,
 
 named!(pub key_value_pairs(&[u8]) -> HashMap<String, String>,
     map!(
-        many0!(do_parse!(opt!(nom::character::streaming::space1) >> k:key_value_pair >> (k) ))
+        many0!(do_parse!(space0 >> k:key_value_pair >> (k) ))
         ,
         |pairs: Vec<(String, String)>| {
             pairs.into_iter().collect()
@@ -483,10 +499,10 @@ named!(pub key_value_pair(&[u8]) -> (String, String),
     do_parse!(
           peek!(none_of!("\r\n"))
        >> left: map_res!(take_until!("="), from_utf8_slice)
+       >> take!(1)
        >> right: alt!(quoted | unquoted)
        >> opt!(char!(','))
        >>
-
        (left, right)
     )
 );
@@ -496,29 +512,35 @@ named!(pub quoted<String>,
 );
 
 named!(pub unquoted<String>,
-    map_res!(take_until!(",\r\n"), from_utf8_slice)
+    map_res!(is_not!(",\r\n"), from_utf8_slice)
 );
 
 named!(pub consume_line<String>,
-    map_res!(take_until!("\r\n"), from_utf8_slice)
+    do_parse!(
+        l: map_res!(is_not!("\r\n"), from_utf8_slice)
+     >> take!(1)
+     >>
+     (l)
+    )
 );
 
 named!(pub number<i32>,
-    map_res!(map_res!(nom::character::streaming::digit1, str::from_utf8), str::FromStr::from_str)
+    map_res!(map_res!(digit1, str::from_utf8), str::FromStr::from_str)
 );
 
 named!(pub byte_range_val<ByteRange>,
     do_parse!(
           n: number
-       >> o: opt!(do_parse!(char!('@') >> n:number >> (n))) >>
+       >> o: opt!(do_parse!(char!('@') >> n:number >> (n) )) >>
         (ByteRange { length: n, offset: o })
     )
 );
 
 named!(pub float<f32>,
     do_parse!(
-          left: map_res!(nom::character::streaming::digit1, str::from_utf8)
-       >> right_opt: opt!(do_parse!(char!('.') >> d:map_res!(nom::character::streaming::digit1, str::from_utf8) >> (d) )) >>
+               left: map_res!(digit1, str::from_utf8)
+       >> right_opt: opt!(do_parse!(char!('.') >> d:map_res!(digit1, str::from_utf8) >> (d) ))
+       >>
         (
         match right_opt {
             Some(right) => {
