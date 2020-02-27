@@ -479,6 +479,8 @@ impl MediaPlaylist {
                             next_segment.uri = u;
                             media_playlist.segments.push(next_segment);
                             next_segment = MediaSegment::empty();
+                            encryption_key = None;
+                            map = None;
                         }
                         _ => (),
                     }
