@@ -14,13 +14,13 @@ macro_rules! write_some_attribute_quoted {
     ($w:expr, $tag:expr, $o:expr) => (
         if let &Some(ref v) = $o { write!($w, "{}=\"{}\"", $tag, v)  } else { Ok(()) }
     );
-}    
+}
 
 macro_rules! write_some_attribute {
     ($w:expr, $tag:expr, $o:expr) => (
         if let &Some(ref v) = $o { write!($w, "{}={}", $tag, v) } else { Ok(()) }
     );
-}  
+}
 
 macro_rules! bool_default_false {
     ($optional:expr) => (
@@ -29,7 +29,7 @@ macro_rules! bool_default_false {
             Some(_) | None => false,
         }
     );
-}     
+}
 
 /// [Playlist](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.1),
 /// can either be a `MasterPlaylist` or a `MediaPlaylist`.
@@ -78,7 +78,6 @@ impl MasterPlaylist {
         let mut alternatives = vec![];
 
         while let Some(tag) = tags.pop() {
-            
             match tag {
                 MasterPlaylistTag::Version(v) => {
                     master_playlist.version = v;
@@ -138,7 +137,7 @@ impl MasterPlaylist {
         if let Some(ref start) = self.start {
             start.write_to(w)?;
         }
-        if self.independent_segments { 
+        if self.independent_segments {
             writeln!(w, "#EXT-X-INDEPENDENT-SEGMENTS")?;
         }
 
@@ -171,7 +170,7 @@ pub struct VariantStream {
     // <attribute-list>
     pub bandwidth: String,
     pub average_bandwidth: Option<String>,
-    pub codecs: String,
+    pub codecs: Option<String>,
     pub resolution: Option<String>,
     pub frame_rate: Option<String>,
     pub audio: Option<String>,
@@ -190,7 +189,7 @@ impl VariantStream {
             uri: attrs.remove("URI").unwrap_or_else(String::new),
             bandwidth: attrs.remove("BANDWIDTH").unwrap_or_else(String::new),
             average_bandwidth: attrs.remove("AVERAGE-BANDWIDTH"),
-            codecs: attrs.remove("CODECS").unwrap_or_else(String::new),
+            codecs: attrs.remove("CODECS"),
             resolution: attrs.remove("RESOLUTION"),
             frame_rate: attrs.remove("FRAME-RATE"),
             audio: attrs.remove("AUDIO"),
@@ -204,7 +203,7 @@ impl VariantStream {
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
 
         for alternative in &self.alternatives {
-             alternative.write_to(w)?;
+            alternative.write_to(w)?;
         }
 
         if self.is_i_frame {
@@ -226,7 +225,7 @@ impl VariantStream {
     fn write_stream_inf_common_attributes<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         write!(w, "BANDWIDTH={}", &self.bandwidth)?;
         write_some_attribute!(w, ",AVERAGE-BANDWIDTH", &self.average_bandwidth)?;
-        write!(w, ",CODECS=\"{}\"", &self.codecs)?;
+        write_some_attribute_quoted!(w, ",CODECS", &self.codecs)?;
         write_some_attribute!(w, ",RESOLUTION", &self.resolution)?;
         write_some_attribute!(w, ",FRAME-RATE", &self.frame_rate)?;
         write_some_attribute_quoted!(w, ",VIDEO", &self.video)
@@ -331,7 +330,7 @@ impl fmt::Display for AlternativeMediaType {
             &AlternativeMediaType::Subtitles => "SUBTITLES",
             &AlternativeMediaType::ClosedCaptions => "CLOSEDCAPTIONS",
         })
-    }    
+    }
 }
 
 
@@ -420,7 +419,7 @@ impl MediaPlaylist {
         let mut map = None;
 
         while let Some(tag) = tags.pop() {
-            
+
             match tag {
                 MediaPlaylistTag::Version(v) => {
                     media_playlist.version = v;
@@ -496,25 +495,25 @@ impl MediaPlaylist {
         writeln!(w, "#EXT-X-VERSION:{}", self.version)?;
         writeln!(w, "#EXT-X-TARGETDURATION:{}", self.target_duration)?;
 
-        if self.media_sequence != 0 { 
+        if self.media_sequence != 0 {
             writeln!(w, "#EXT-X-MEDIA-SEQUENCE:{}", self.media_sequence)?;
         }
         if self.discontinuity_sequence != 0 {
             writeln!(w, "#EXT-X-DISCONTINUITY-SEQUENCE:{}", self.discontinuity_sequence)?;
         }
-        if self.end_list { 
-            writeln!(w, "#EXT-X-ENDLIST")?; 
+        if self.end_list {
+            writeln!(w, "#EXT-X-ENDLIST")?;
         }
         if let Some(ref v) = self.playlist_type {
             writeln!(w, "#EXT-X-PLAYLIST-TYPE:{}", v)?;
         }
-        if self.i_frames_only { 
+        if self.i_frames_only {
             writeln!(w, "#EXT-X-I-FRAMES-ONLY")?;
         }
         if let Some(ref start) = self.start {
             start.write_to(w)?;
         }
-        if self.independent_segments { 
+        if self.independent_segments {
             writeln!(w, "#EXT-X-INDEPENDENT-SEGMENTS")?;
         }
         for segment in &self.segments {
@@ -551,7 +550,7 @@ impl fmt::Display for MediaPlaylistType {
             &MediaPlaylistType::Event => "EVENT",
             &MediaPlaylistType::Vod => "VOD",
         })
-    }    
+    }
 }
 
 impl Default for MediaPlaylistType {
@@ -599,8 +598,8 @@ impl MediaSegment {
             byte_range.write_value_to(w)?;
             write!(w, "\n")?;
         }
-        if self.discontinuity { 
-           writeln!(w, "{}", "#EXT-X-DISCONTINUITY")?; 
+        if self.discontinuity {
+            writeln!(w, "{}", "#EXT-X-DISCONTINUITY")?;
         }
         if let Some(ref key) = self.key {
             write!(w, "#EXT-X-KEY:")?;
@@ -617,7 +616,7 @@ impl MediaSegment {
         }
         if let Some(ref v) = self.daterange {
             writeln!(w, "#EXT-X-DATERANGE:{}", v)?;
-        }    
+        }
 
         write!(w, "#EXTINF:{},", self.duration)?;
 
@@ -658,7 +657,7 @@ impl Key {
         }
     }
 
-    pub fn write_attributes_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {     
+    pub fn write_attributes_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         write!(w, "METHOD={}", self.method)?;
         write_some_attribute_quoted!(w, ",URI", &self.uri)?;
         write_some_attribute!(w, ",IV", &self.iv)?;
