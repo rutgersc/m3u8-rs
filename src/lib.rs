@@ -46,7 +46,7 @@
 //!     let mut file = std::fs::File::open("masterplaylist.m3u8").unwrap();
 //!     let mut bytes: Vec<u8> = Vec::new();
 //!     file.read_to_end(&mut bytes).unwrap();
-//!     
+//!
 //!     if let IResult::Done(_, pl) = m3u8_rs::parse_master_playlist(&bytes) {
 //!         println!("{:?}", pl);
 //!     }
@@ -61,7 +61,7 @@
 //! use m3u8_rs::playlist::{MediaPlaylist, MediaPlaylistType, MediaSegment};
 //!
 //! fn main() {
-//!     let playlist = MediaPlaylist { 
+//!     let playlist = MediaPlaylist {
 //!         version: 6,
 //!         target_duration: 3.0,
 //!         media_sequence: 338559,
@@ -78,10 +78,10 @@
 //!         ],
 //!         ..Default::default()
 //!     };
-//! 
+//!
 //!     //let mut v: Vec<u8> = Vec::new();
 //!     //playlist.write_to(&mut v).unwrap();
-//! 
+//!
 //!     //let mut file = std::fs::File::open("playlist.m3u8").unwrap();
 //!     //playlist.write_to(&mut file).unwrap();
 //! }
@@ -131,9 +131,8 @@ use playlist::*;
 /// }
 pub fn parse_playlist(input: &[u8]) -> IResult<&[u8], Playlist> {
     match is_master_playlist(input) {
-        // XXX: get rid of the local `map` to be able to `use` this
-        true => nom::combinator::map(parse_master_playlist, Playlist::MasterPlaylist)(input),
-        false => nom::combinator::map(parse_media_playlist, Playlist::MediaPlaylist)(input),
+        true => map(parse_master_playlist, Playlist::MasterPlaylist)(input),
+        false =>map(parse_media_playlist, Playlist::MediaPlaylist)(input),
     }
 }
 
@@ -412,8 +411,8 @@ pub fn media_segment_tag(input: &[u8]) -> IResult<&[u8], SegmentTag> {
       map!(do_parse!(tag!("#EXTINF:") >> e:duration_title_tag >> (e)), |(a,b)| SegmentTag::Extinf(a,b))
     | map!(do_parse!(tag!("#EXT-X-BYTERANGE:") >> r:byte_range_val >> (r)), SegmentTag::ByteRange)
     | map!(tag!("#EXT-X-DISCONTINUITY"), |_| SegmentTag::Discontinuity)
-    | map!(do_parse!(tag!("#EXT-X-KEY:") >> k:key >> (k)), SegmentTag::Key)
-    | map!(do_parse!(tag!("#EXT-X-MAP:") >> m:map >> (m)), SegmentTag::Map)
+    | map!(do_parse!(tag!("#EXT-X-KEY:") >> k: key >> (k)), SegmentTag::Key)
+    | map!(do_parse!(tag!("#EXT-X-MAP:") >> m: extmap >> (m)), SegmentTag::Map)
     | map!(do_parse!(tag!("#EXT-X-PROGRAM-DATE-TIME:") >> t:consume_line >> (t)), SegmentTag::ProgramDateTime)
     | map!(do_parse!(tag!("#EXT-X-DATE-RANGE:") >> t:consume_line >> (t)), SegmentTag::DateRange)
 
@@ -438,7 +437,7 @@ named!(pub duration_title_tag<(f32, Option<String>)>,
 
 named!(pub key<Key>, map!(key_value_pairs, Key::from_hashmap));
 
-named!(pub map<Map>, map!(key_value_pairs, Map::from_hashmap));
+named!(pub extmap<Map>, map!(key_value_pairs, Map::from_hashmap));
 
 // -----------------------------------------------------------------------------------------------
 // Basic tags
