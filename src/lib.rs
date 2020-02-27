@@ -166,7 +166,7 @@ pub fn parse_playlist_res(input: &[u8]) -> Result<Playlist, IResult<&[u8], Playl
 
 /// Parse input as a master playlist
 pub fn parse_master_playlist(input: &[u8]) -> IResult<&[u8], MasterPlaylist> {
-    nom::combinator::map(parse_master_playlist_tags, MasterPlaylist::from_tags)(input)
+    map(parse_master_playlist_tags, MasterPlaylist::from_tags)(input)
 }
 
 /// Parse input as a master playlist
@@ -180,7 +180,7 @@ pub fn parse_master_playlist_res(input: &[u8]) -> Result<MasterPlaylist, IResult
 
 /// Parse input as a media playlist
 pub fn parse_media_playlist(input: &[u8]) -> IResult<&[u8], MediaPlaylist> {
-    nom::combinator::map(parse_media_playlist_tags, MediaPlaylist::from_tags)(input)
+    map(parse_media_playlist_tags, MediaPlaylist::from_tags)(input)
 }
 
 /// Parse input as a media playlist
