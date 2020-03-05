@@ -96,6 +96,7 @@ use nom::character::complete::{digit1, multispace0, space0 };
 use nom::{IResult};
 use nom::{ delimited,none_of,peek,is_not,complete,terminated,tag,
            alt,do_parse,opt,named,map,map_res,eof,many0,take,take_until,char};
+use nom::combinator::map;
 
 use std::str;
 use std::f32;
