@@ -42,7 +42,7 @@ fn print_parse_playlist_test(playlist_name: &str) -> bool {
     println!("Parsing playlist file: {:?}", playlist_name);
     let parsed = parse_playlist(input.as_bytes());
 
-    if let IResult::Done(i,o) = parsed {
+    if let Result::Ok((i,o)) = parsed {
         println!("{:?}", o);
         true
     }
@@ -117,9 +117,9 @@ fn playlist_types() {
         let input = getm3u(path);
         let is_master = is_master_playlist(input.as_bytes());
 
-        assert!(path.to_lowercase().contains("master") == is_master);
-
         println!("{:?} = {:?}", path, is_master);
+
+        assert!(path.to_lowercase().contains("master") == is_master);     
     }
 }
 
@@ -147,7 +147,7 @@ fn test_key_value_pairs_trailing_equals() {
 fn test_key_value_pairs_multiple_quoted_values() {
     assert_eq!(
         key_value_pairs(b"BANDWIDTH=86000,URI=\"low/iframe.m3u8\",PROGRAM-ID=1,RESOLUTION=\"1x1\",VIDEO=1\nrest"),
-        IResult::Done(
+        Result::Ok((
             "\nrest".as_bytes(),
             vec![
                 ("BANDWIDTH".to_string(), "86000".to_string()),
@@ -156,7 +156,7 @@ fn test_key_value_pairs_multiple_quoted_values() {
                 ("RESOLUTION".to_string(), "1x1".to_string()),
                 ("VIDEO".to_string(), "1".to_string())
             ].into_iter().collect::<HashMap<String,String>>()
-        )
+        ))
     );
 }
 
@@ -177,10 +177,10 @@ fn test_key_value_pairs() {
 fn test_key_value_pair() {
     assert_eq!(
         key_value_pair(b"PROGRAM-ID=1,rest"),
-        IResult::Done(
+        Result::Ok((
             "rest".as_bytes(),
             ("PROGRAM-ID".to_string(), "1".to_string())
-        )
+        )) 
     );
 }
 
@@ -188,7 +188,7 @@ fn test_key_value_pair() {
 fn comment() {
     assert_eq!(
         comment_tag(b"#Hello\nxxx"),
-        IResult::Done("xxx".as_bytes(), "Hello".to_string())
+        Result::Ok(("xxx".as_bytes(), "Hello".to_string()))
     );
 }
 
@@ -196,7 +196,9 @@ fn comment() {
 fn quotes() {
     assert_eq!(
         quoted(b"\"value\"rest"),
-        IResult::Done("rest".as_bytes(), "value".to_string())
+        Result::Ok(("rest".as_bytes(), "value".to_string()))
+    );
+}
     );
 }
 
@@ -210,7 +212,7 @@ fn consume_empty_line() {
 fn float_() {
     assert_eq!(
         float(b"33.22rest"),
-        IResult::Done("rest".as_bytes(), 33.22f32)
+        Result::Ok(("rest".as_bytes(), 33.22f32))
     );
 }
 
@@ -218,7 +220,7 @@ fn float_() {
 fn float_no_decimal() {
     assert_eq!(
         float(b"33rest"),
-        IResult::Done("rest".as_bytes(), 33f32)
+        Result::Ok(("rest".as_bytes(), 33f32))
     );
 }
 
@@ -226,7 +228,7 @@ fn float_no_decimal() {
 fn float_should_ignore_trailing_dot() {
     assert_eq!(
         float(b"33.rest"),
-        IResult::Done(".rest".as_bytes(), 33f32)
+        Result::Ok((".rest".as_bytes(), 33f32))
     );
 }
 
@@ -234,7 +236,7 @@ fn float_should_ignore_trailing_dot() {
 fn parse_duration_title() {
     assert_eq!(
         duration_title_tag(b"2.002,title\nrest"),
-        IResult::Done("rest".as_bytes(), (2.002f32, Some("title".to_string())))
+        Result::Ok(("rest".as_bytes(), (2.002f32, Some("title".to_string()))))
     );
 }
 
@@ -279,7 +281,7 @@ fn create_and_parse_master_playlist_full() {
                 uri: "masterplaylist-uri".into(),
                 bandwidth: "10010010".into(),
                 average_bandwidth: Some("10010010".into()),
-                codecs: "TheCODEC".into(),
+                codecs: Some("TheCODEC".into()),
                 resolution: Some("1000x3000".into()),
                 frame_rate: Some("60".into()),
                 audio: Some("audio".into()),
