@@ -3,7 +3,6 @@ extern crate m3u8_rs;
 
 use m3u8_rs::playlist::{Playlist};
 use std::io::Read;
-use nom::IResult;
 
 fn main() {
     let mut file = std::fs::File::open("playlist.m3u8").unwrap();
@@ -13,9 +12,8 @@ fn main() {
     let parsed = m3u8_rs::parse_playlist(&bytes);
 
     let playlist = match parsed {
-        IResult::Done(i, playlist) => playlist,
-        IResult::Error(e) =>  panic!("Parsing error: \n{}", e),
-        IResult::Incomplete(e) => panic!("Parsing error: \n{:?}", e),
+        Result::Ok((i, playlist)) => playlist,
+        Result::Err(e) =>  panic!("Parsing error: \n{}", e),
     };
 
     match playlist {
@@ -32,9 +30,8 @@ fn main_alt() {
     let parsed = m3u8_rs::parse_playlist(&bytes);
 
     match parsed {
-        IResult::Done(i, Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{:?}", pl),
-        IResult::Done(i, Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{:?}", pl),
-        IResult::Error(e) =>  panic!("Parsing error: \n{}", e),
-        IResult::Incomplete(e) => panic!("Parsing error: \n{:?}", e),
+        Result::Ok((i, Playlist::MasterPlaylist(pl))) => println!("Master playlist:\n{:?}", pl),
+        Result::Ok((i, Playlist::MediaPlaylist(pl))) => println!("Media playlist:\n{:?}", pl),
+        Result::Err(e) =>  panic!("Parsing error: \n{}", e),
     }
 }
