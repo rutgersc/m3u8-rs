@@ -199,13 +199,29 @@ fn quotes() {
         Result::Ok(("rest".as_bytes(), "value".to_string()))
     );
 }
+
+#[test]
+fn consume_line_empty() {
+    assert_eq!(
+        consume_line(b"\r\nrest"),
+        Result::Err(nom::Err::Error(("\r\nrest".as_bytes(), nom::error::ErrorKind::IsNot))) 
     );
 }
 
 #[test]
-fn consume_empty_line() {
-    let line = consume_line(b"\r\nrest");
-    println!("{:?}", line);
+fn consume_line_n() {
+    assert_eq!(
+        consume_line(b"before\nrest"),
+        Result::Ok(("rest".as_bytes(), "before".into()))
+    );
+}
+
+#[test]
+fn consume_line_rn() {
+    assert_eq!(
+        consume_line(b"before\r\nrest"),
+        Result::Ok(("rest".as_bytes(), "before".into()))
+    );
 }
 
 #[test]
