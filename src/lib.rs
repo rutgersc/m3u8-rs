@@ -1,7 +1,7 @@
 //! A library to parse m3u8 playlists (HTTP Live Streaming) [link]
 //! (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19).
 //!
-//! #Examples
+//! # Examples
 //!
 //! Parsing a playlist and let the parser figure out if it's a media or master playlist.
 //!
@@ -17,19 +17,10 @@
 //!     let mut bytes: Vec<u8> = Vec::new();
 //!     file.read_to_end(&mut bytes).unwrap();
 //!
-//!     // Option 1: fn parse_playlist_res(input) -> Result<Playlist, _>
-//!     match m3u8_rs::parse_playlist_res(&bytes) {
-//!         Ok(Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{:?}", pl),
-//!         Ok(Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{:?}", pl),
-//!         Err(e) => println!("Error: {:?}", e)
-//!     }
-//!
-//!     // Option 2: fn parse_playlist(input) -> IResult<_, Playlist, _>
 //!     match m3u8_rs::parse_playlist(&bytes) {
-//!         IResult::Done(i, Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{:?}", pl),
-//!         IResult::Done(i, Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{:?}", pl),
-//!         IResult::Error(e) =>  panic!("Parsing error: \n{}", e),
-//!         IResult::Incomplete(e) => panic!("Parsing error: \n{:?}", e),
+//!         Result::Ok((i, Playlist::MasterPlaylist(pl))) => println!("Master playlist:\n{:?}", pl),
+//!         Result::Ok((i, Playlist::MediaPlaylist(pl))) => println!("Media playlist:\n{:?}", pl),
+//!         Result::Err(e) =>  panic!("Parsing error: \n{}", e),
 //!     }
 //! }
 //! ```
@@ -47,7 +38,7 @@
 //!     let mut bytes: Vec<u8> = Vec::new();
 //!     file.read_to_end(&mut bytes).unwrap();
 //!
-//!     if let IResult::Done(_, pl) = m3u8_rs::parse_master_playlist(&bytes) {
+//!     if let Result::Ok((_, pl)) = m3u8_rs::parse_master_playlist(&bytes) {
 //!         println!("{:?}", pl);
 //!     }
 //! }
@@ -97,7 +88,7 @@ use nom::{IResult};
 use nom::{ delimited,none_of,peek,is_not,complete,terminated,tag,
            alt,do_parse,opt,named,map,map_res,eof,many0,take,take_until,char};
 use nom::combinator::map;
-
+use nom::character::complete::{line_ending};
 use std::str;
 use std::f32;
 use std::string;
@@ -110,10 +101,14 @@ use playlist::*;
 // Playlist parser
 // -----------------------------------------------------------------------------------------------
 
-/// Parse a m3u8 playlist.
+/// Parse an m3u8 playlist.
 ///
-/// #Examples
+/// # Examples
 ///
+/// ```
+/// use std::io::Read;
+/// use m3u8_rs::playlist::{Playlist};
+/// 
 /// let mut file = std::fs::File::open("playlist.m3u8").unwrap();
 /// let mut bytes: Vec<u8> = Vec::new();
 /// file.read_to_end(&mut bytes).unwrap();
@@ -121,15 +116,15 @@ use playlist::*;
 /// let parsed = m3u8_rs::parse_playlist(&bytes);
 ///
 /// let playlist = match parsed {
-///     IResult::Done(i, playlist) => playlist,
-///     IResult::Error(e) =>  panic!("Parsing error: \n{}", e),
-///     IResult::Incomplete(e) => panic!("Parsing error: \n{:?}", e),
+///     Result::Ok((i, playlist)) => playlist,
+///     Result::Err(e) => panic!("Parsing error: \n{}", e),
 /// };
 ///
 /// match playlist {
 ///     Playlist::MasterPlaylist(pl) => println!("Master playlist:\n{:?}", pl),
 ///     Playlist::MediaPlaylist(pl) => println!("Media playlist:\n{:?}", pl),
 /// }
+/// ```
 pub fn parse_playlist(input: &[u8]) -> IResult<&[u8], Playlist> {
     match is_master_playlist(input) {
         true => map(parse_master_playlist, Playlist::MasterPlaylist)(input),
@@ -137,9 +132,10 @@ pub fn parse_playlist(input: &[u8]) -> IResult<&[u8], Playlist> {
     }
 }
 
-/// Parse a m3u8 playlist just like `parse_playlist`. This returns a Result<PLaylist,_>.
-///
-/// #Examples
+/// Parses an m3u8 playlist just like `parse_playlist`, except that this returns an [std::result::Result](std::result::Result) instead of a [nom::IResult](https://docs.rs/nom/1.2.3/nom/enum.IResult.html).
+/// However, since [nom::IResult](nom::IResult) is now an [alias to Result](https://github.com/Geal/nom/blob/master/doc/upgrading_to_nom_5.md), this is no longer needed. 
+/// 
+/// # Examples
 ///
 /// ```
 /// use m3u8_rs::playlist::{Playlist};
@@ -517,10 +513,9 @@ named!(pub unquoted<String>,
 
 named!(pub consume_line<String>,
     do_parse!(
-        l: map_res!(is_not!("\r\n"), from_utf8_slice)
-     >> take!(1)
-     >>
-     (l)
+        line: map_res!(is_not!("\r\n"), from_utf8_slice)
+        >> line_ending
+        >> (line)
     )
 );
 
