@@ -7,7 +7,7 @@ To use this library, add the following dependency to `Cargo.toml`:
 
 ```toml
 [dependencies]
-m3u8-rs = "1.0.2"
+m3u8-rs = "1.0.6"
 ```
 
 And add the crate to `lib.rs`
@@ -60,8 +60,8 @@ file.read_to_end(&mut bytes).unwrap();
 let parsed = m3u8_rs::parse_playlist(&bytes);
 
 match parsed {
-    IResult::Done(i, Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{}", pl),
-    IResult::Done(i, Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{}", pl),
+    IResult::Ok((i, Playlist::MasterPlaylist(pl))) => println!("Master playlist:\n{}", pl),
+    IResult::Ok((i, Playlist::MediaPlaylist(pl))) => println!("Media playlist:\n{}", pl),
     IResult::Error(e) =>  panic!("Parsing error: \n{}", e),
     IResult::Incomplete(e) => panic!("Parsing error: \n{:?}", e),
 }
