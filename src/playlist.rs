@@ -623,7 +623,7 @@ impl MediaSegment {
         if let Some(ref v) = self.title {
             writeln!(w, "{}", v)?;
         } else {
-            write!(w, "\n");
+            write!(w, "\n")?;
         }
 
         writeln!(w, "{}", self.uri)
