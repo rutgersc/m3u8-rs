@@ -69,7 +69,8 @@ pub struct MasterPlaylist {
     pub session_key: Option<SessionKey>,
     pub start: Option<Start>,
     pub independent_segments: bool,
-    pub alternatives: Vec<AlternativeMedia> // EXT-X-MEDIA tags
+    pub alternatives: Vec<AlternativeMedia>, // EXT-X-MEDIA tags
+    pub unknown_tags: Vec<ExtTag>
 }
 
 impl MasterPlaylist {
@@ -105,8 +106,8 @@ impl MasterPlaylist {
                 MasterPlaylistTag::IndependentSegments => {
                     master_playlist.independent_segments = true;
                 }
-                MasterPlaylistTag::Unknown(_) => {
-                    // println!("Unknown master tag \n{:?}\n", t);
+                MasterPlaylistTag::Unknown(unknown) => {
+                    master_playlist.unknown_tags.push(unknown);
                 }
                 _ => (),
             }
@@ -141,6 +142,9 @@ impl MasterPlaylist {
         }
         if self.independent_segments {
             writeln!(w, "#EXT-X-INDEPENDENT-SEGMENTS")?;
+        }
+        for unknown_tag in &self.unknown_tags {
+            write!(w, "#EXT-{}:{}\n", unknown_tag.tag, unknown_tag.rest)?;
         }
 
         Ok(())
@@ -405,6 +409,8 @@ pub struct MediaPlaylist {
     pub start: Option<Start>,
     /// `#EXT-X-INDEPENDENT-SEGMENTS`
     pub independent_segments: bool,
+    /// `#EXT-X-` 
+    pub unknown_tags: Vec<ExtTag>
 }
 
 impl MediaPlaylist {
@@ -469,6 +475,9 @@ impl MediaPlaylist {
                         SegmentTag::DateRange(d) => {
                             next_segment.daterange = Some(d);
                         }
+                        SegmentTag::Unknown(t) => {
+                            media_playlist.unknown_tags.push(t);
+                        }
                         SegmentTag::Uri(u) => {
                             next_segment.key = encryption_key.clone();
                             next_segment.map = map.clone();
@@ -515,6 +524,9 @@ impl MediaPlaylist {
         }
         for segment in &self.segments {
             segment.write_to(w)?;
+        }
+        for unknown_tag in &self.unknown_tags {
+            write!(w, "#EXT-{}:{}\n", unknown_tag.tag, unknown_tag.rest)?;
         }
 
         Ok(())
@@ -789,8 +801,9 @@ impl Start {
 }
 
 /// A simple `#EXT-` tag
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct ExtTag {
     pub tag: String,
     pub rest: String,
 }
+
