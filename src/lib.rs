@@ -85,7 +85,7 @@ pub mod playlist;
 
 use nom::character::complete::{digit1, multispace0, space0 };
 use nom::{IResult};
-use nom::{ delimited,none_of,peek,is_not,complete,terminated,tag,
+use nom::{ delimited,none_of,peek,is_a,is_not,complete,terminated,tag,
            alt,do_parse,opt,named,map,map_res,eof,many0,take,take_until,char};
 use nom::combinator::map;
 use nom::character::complete::{line_ending};
@@ -222,7 +222,8 @@ pub fn contains_master_tag(input: &[u8]) -> Option<(bool, String)> {
 
 named!(pub is_master_playlist_tag_line(&[u8]) -> Option<(bool, String)>,
     do_parse!(
-        tag: opt!(alt!(
+        opt!(is_a!("\r\n"))
+        >> tag: opt!(alt!(
                   map!(tag!("#EXT-X-STREAM-INF"),         |t| (true, t))
                 | map!(tag!("#EXT-X-I-FRAME-STREAM-INF"), |t| (true, t))
                 | map!(terminated!(tag!("#EXT-X-MEDIA"), is_not!("-")), |t| (true, t)) // terminated!() to prevent matching with #EXT-X-MEDIA-SEQUENCE for which we have a separate pattern below
