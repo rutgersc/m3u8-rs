@@ -87,6 +87,11 @@ fn playlist_not_ending_in_newline_master() {
 }
 
 #[test]
+fn playlist_not_ending_in_newline_master1() {
+    assert!(print_parse_playlist_test("master-not-ending-in-newline-1.m3u8"));
+}
+
+#[test]
 fn playlist_not_ending_in_newline_media() {
     assert!(print_parse_playlist_test("media-not-ending-in-newline.m3u8"));
 }
@@ -201,10 +206,9 @@ fn quotes() {
 
 #[test]
 fn consume_line_empty() {
-    assert_eq!(
-        consume_line(b"\r\nrest"),
-        Result::Err(nom::Err::Error(("\r\nrest".as_bytes(), nom::error::ErrorKind::IsNot))) 
-    );
+    let expected = Result::Ok(("rest".as_bytes(), "".to_string())); 
+    let actual = consume_line(b"\r\nrest");
+    assert_eq!(expected, actual);
 }
 
 #[test]
