@@ -83,12 +83,12 @@ extern crate nom;
 
 pub mod playlist;
 
-use nom::character::complete::{digit1, multispace0, space0 };
-use nom::{IResult};
-use nom::{ delimited,none_of,peek,is_a,is_not,complete,terminated,tag,
+use self::nom::character::complete::{digit1, multispace0, space0 };
+use self::nom::{IResult};
+use self::nom::{ delimited,none_of,peek,is_a,is_not,complete,terminated,tag,
            alt,do_parse,opt,named,map,map_res,eof,many0,take,take_until,char};
-use nom::combinator::map;
-use nom::character::complete::{line_ending, not_line_ending};
+use self::nom::combinator::map;
+use self::nom::character::complete::{line_ending, not_line_ending};
 use std::str;
 use std::f32;
 use std::string;
@@ -163,7 +163,7 @@ pub fn parse_playlist_res(input: &[u8]) -> Result<Playlist, IResult<&[u8], Playl
 
 /// Parse input as a master playlist
 pub fn parse_master_playlist(input: &[u8]) -> IResult<&[u8], MasterPlaylist> {
-    map(parse_master_playlist_tags, MasterPlaylist::from_tags)(input)
+    map(parse_master_playlist_tags, master_playlist_from_tags)(input)
 }
 
 /// Parse input as a master playlist
@@ -177,7 +177,7 @@ pub fn parse_master_playlist_res(input: &[u8]) -> Result<MasterPlaylist, IResult
 
 /// Parse input as a media playlist
 pub fn parse_media_playlist(input: &[u8]) -> IResult<&[u8], MediaPlaylist> {
-    map(parse_media_playlist_tags, MediaPlaylist::from_tags)(input)
+    map(parse_media_playlist_tags, media_playlist_from_tags)(input)
 }
 
 /// Parse input as a media playlist
@@ -303,6 +303,48 @@ pub fn master_playlist_tag(input: &[u8]) -> IResult<&[u8], MasterPlaylistTag> {
     )
 }
 
+pub fn master_playlist_from_tags(mut tags: Vec<MasterPlaylistTag>) -> MasterPlaylist {
+    let mut master_playlist = MasterPlaylist::default();
+
+    while let Some(tag) = tags.pop() {
+        match tag {
+            MasterPlaylistTag::Version(v) => {
+                master_playlist.version = v;
+            }
+            MasterPlaylistTag::AlternativeMedia(v) => {
+                master_playlist.alternatives.push(v);
+            }
+            MasterPlaylistTag::VariantStream(stream) => {
+                master_playlist.variants.push(stream);
+            }
+            MasterPlaylistTag::Uri(uri) => {
+                if let Some(stream) = master_playlist.get_newest_variant() {
+                    stream.uri = uri;
+                }
+            }
+            MasterPlaylistTag::SessionData(data) => {
+                master_playlist.session_data.push(data);
+            }
+            MasterPlaylistTag::SessionKey(key) => {
+                master_playlist.session_key.push(key);
+            }
+            MasterPlaylistTag::Start(s) => {
+                master_playlist.start = Some(s);
+            }
+            MasterPlaylistTag::IndependentSegments => {
+                master_playlist.independent_segments = true;
+            }
+            MasterPlaylistTag::Unknown(unknown) => {
+                master_playlist.unknown_tags.push(unknown);
+            }
+            _ => (),
+        }
+    }
+
+    master_playlist
+}
+
+
 named!(pub variant_stream_tag<VariantStream>,
     do_parse!(tag!("#EXT-X-STREAM-INF:") >> attributes: key_value_pairs >>
            ( VariantStream::from_hashmap(attributes, false)))
@@ -375,6 +417,87 @@ pub fn media_playlist_tag(input: &[u8]) -> IResult<&[u8], MediaPlaylistTag> {
     )
 }
 
+pub fn media_playlist_from_tags(mut tags: Vec<MediaPlaylistTag>) -> MediaPlaylist {
+    let mut media_playlist = MediaPlaylist::default();
+    let mut next_segment = MediaSegment::empty();
+    let mut encryption_key = None;
+    let mut map = None;
+
+    while let Some(tag) = tags.pop() {
+
+        match tag {
+            MediaPlaylistTag::Version(v) => {
+                media_playlist.version = v;
+            }
+            MediaPlaylistTag::TargetDuration(d) => {
+                media_playlist.target_duration = d;
+            }
+            MediaPlaylistTag::MediaSequence(n) => {
+                media_playlist.media_sequence = n;
+            }
+            MediaPlaylistTag::DiscontinuitySequence(n) => {
+                media_playlist.discontinuity_sequence = n;
+            }
+            MediaPlaylistTag::EndList => {
+                media_playlist.end_list = true;
+            }
+            MediaPlaylistTag::PlaylistType(t) => {
+                media_playlist.playlist_type = Some(t);
+            }
+            MediaPlaylistTag::IFramesOnly => {
+                media_playlist.i_frames_only = true;
+            }
+            MediaPlaylistTag::Start(s) => {
+                media_playlist.start = Some(s);
+            }
+            MediaPlaylistTag::IndependentSegments => {
+                media_playlist.independent_segments = true;
+            }
+            MediaPlaylistTag::Segment(segment_tag) => {
+                match segment_tag {
+                    SegmentTag::Extinf(d, t) => {
+                        next_segment.duration = d;
+                        next_segment.title = t;
+                    }
+                    SegmentTag::ByteRange(b) => {
+                        next_segment.byte_range = Some(b);
+                    }
+                    SegmentTag::Discontinuity => {
+                        next_segment.discontinuity = true;
+                    }
+                    SegmentTag::Key(k) => {
+                        encryption_key = Some(k);
+                    }
+                    SegmentTag::Map(m) => {
+                        map = Some(m);
+                    }
+                    SegmentTag::ProgramDateTime(d) => {
+                        next_segment.program_date_time = Some(d);
+                    }
+                    SegmentTag::DateRange(d) => {
+                        next_segment.daterange = Some(d);
+                    }
+                    SegmentTag::Unknown(t) => {
+                        media_playlist.unknown_tags.push(t);
+                    }
+                    SegmentTag::Uri(u) => {
+                        next_segment.key = encryption_key.clone();
+                        next_segment.map = map.clone();
+                        next_segment.uri = u;
+                        media_playlist.segments.push(next_segment);
+                        next_segment = MediaSegment::empty();
+                        encryption_key = None;
+                        map = None;
+                    }
+                    _ => (),
+                }
+            }
+            _ => (),
+        }
+    }
+    media_playlist
+}
+
 named!(pub playlist_type<MediaPlaylistType>,
     map_res!(
         do_parse!(
@@ -436,7 +559,15 @@ named!(pub duration_title_tag<(f32, Option<String>)>,
 
 named!(pub key<Key>, map!(key_value_pairs, Key::from_hashmap));
 
-named!(pub extmap<Map>, map!(key_value_pairs, Map::from_hashmap));
+named!(pub extmap<Map>, map!(key_value_pairs, |attrs| Map {
+    uri: attrs.get("URI").map(|u| u.clone()).unwrap_or_default(),
+    byte_range: attrs.get("BYTERANGE").map(|range| {
+        match byte_range_val(range.as_bytes()) {
+            IResult::Ok((_, br)) => br,
+            _ => panic!("Should not happen"),
+        }
+    }),
+}));
 
 // -----------------------------------------------------------------------------------------------
 // Basic tags
