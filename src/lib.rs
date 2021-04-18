@@ -88,7 +88,7 @@ use nom::{IResult};
 use nom::{ delimited,none_of,peek,is_a,is_not,complete,terminated,tag,
            alt,do_parse,opt,named,map,map_res,eof,many0,take,take_until,char};
 use nom::combinator::map;
-use nom::character::complete::{line_ending};
+use nom::character::complete::{line_ending, not_line_ending};
 use std::str;
 use std::f32;
 use std::string;
@@ -514,8 +514,8 @@ named!(pub unquoted<String>,
 
 named!(pub consume_line<String>,
     do_parse!(
-        line: map_res!(is_not!("\r\n"), from_utf8_slice)
-        >> line_ending
+        line: map_res!(not_line_ending, from_utf8_slice)
+        >> opt!(line_ending)
         >> (line)
     )
 );
