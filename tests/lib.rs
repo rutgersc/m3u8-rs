@@ -333,12 +333,13 @@ fn create_and_parse_master_playlist_full() {
                 closed_captions: Some("closed_captions".into()),
             }
         ],
-        session_data: Some(SessionData {
-            data_id: "****".into(),
-            value: "%%%%".into(),
-            uri: "++++".into(),
-            language: Some("SessionDataLanguage".into()),
-        }),
+        session_data: Some(
+            SessionData {
+                data_id: "****".into(),
+                field: SessionDataField::Value("%%%%".to_string()),
+                language: Some("SessionDataLanguage".into()),
+            }
+        ),
         session_key: Some(SessionKey(Key {
             method: "AES-128".into(),
             uri: Some("https://secure.domain.com".into()),
