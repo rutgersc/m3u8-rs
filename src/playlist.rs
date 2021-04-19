@@ -65,8 +65,8 @@ impl Playlist {
 pub struct MasterPlaylist {
     pub version: usize,
     pub variants: Vec<VariantStream>,
-    pub session_data: Option<SessionData>,
-    pub session_key: Option<SessionKey>,
+    pub session_data: Vec<SessionData>,
+    pub session_key: Vec<SessionKey>,
     pub start: Option<Start>,
     pub independent_segments: bool,
     pub alternatives: Vec<AlternativeMedia>, // EXT-X-MEDIA tags
@@ -74,7 +74,6 @@ pub struct MasterPlaylist {
 }
 
 impl MasterPlaylist {
-
     pub fn from_tags(mut tags: Vec<MasterPlaylistTag>) -> MasterPlaylist {
         let mut master_playlist = MasterPlaylist::default();
 
@@ -95,10 +94,10 @@ impl MasterPlaylist {
                     }
                 }
                 MasterPlaylistTag::SessionData(data) => {
-                    master_playlist.session_data = Some(data);
+                    master_playlist.session_data.push(data);
                 }
                 MasterPlaylistTag::SessionKey(key) => {
-                    master_playlist.session_key = Some(key);
+                    master_playlist.session_key.push(key);
                 }
                 MasterPlaylistTag::Start(s) => {
                     master_playlist.start = Some(s);
@@ -131,10 +130,10 @@ impl MasterPlaylist {
         for variant in &self.variants {
             variant.write_to(w)?;
         }
-        if let Some(ref session_data) = self.session_data {
+        for session_data in &self.session_data {
             session_data.write_to(w)?;
         }
-        if let Some(ref session_key) = self.session_key {
+        for session_key in &self.session_key {
             session_key.write_to(w)?;
         }
         if let Some(ref start) = self.start {
