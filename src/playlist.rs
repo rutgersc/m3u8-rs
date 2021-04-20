@@ -69,13 +69,13 @@ pub struct MasterPlaylist {
     pub session_key: Option<SessionKey>,
     pub start: Option<Start>,
     pub independent_segments: bool,
+    pub alternatives: Vec<AlternativeMedia> // EXT-X-MEDIA tags
 }
 
 impl MasterPlaylist {
 
     pub fn from_tags(mut tags: Vec<MasterPlaylistTag>) -> MasterPlaylist {
         let mut master_playlist = MasterPlaylist::default();
-        let mut alternatives = vec![];
 
         while let Some(tag) = tags.pop() {
             match tag {
@@ -83,11 +83,9 @@ impl MasterPlaylist {
                     master_playlist.version = v;
                 }
                 MasterPlaylistTag::AlternativeMedia(v) => {
-                    alternatives.push(v);
+                    master_playlist.alternatives.push(v);
                 }
-                MasterPlaylistTag::VariantStream(mut stream) => {
-                    stream.alternatives = alternatives;
-                    alternatives = vec![];
+                MasterPlaylistTag::VariantStream(stream) => {
                     master_playlist.variants.push(stream);
                 }
                 MasterPlaylistTag::Uri(uri) => {
@@ -124,6 +122,10 @@ impl MasterPlaylist {
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         writeln!(w, "{}" ,"#EXTM3U")?;
         writeln!(w, "#EXT-X-VERSION:{}", self.version)?;
+
+        for alternative in &self.alternatives {
+            alternative.write_to(w)?;
+        }
 
         for variant in &self.variants {
             variant.write_to(w)?;
@@ -178,7 +180,6 @@ pub struct VariantStream {
     pub subtitles: Option<String>,
     pub closed_captions: Option<String>,
     // PROGRAM-ID tag was removed in protocol version 6
-    pub alternatives: Vec<AlternativeMedia>, // EXT-X-MEDIA tags
 }
 
 impl VariantStream {
@@ -196,15 +197,11 @@ impl VariantStream {
             video: attrs.remove("VIDEO"),
             subtitles: attrs.remove("SUBTITLES"),
             closed_captions: attrs.remove("CLOSED-CAPTIONS"),
-            alternatives: vec![],
         }
     }
 
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
 
-        for alternative in &self.alternatives {
-            alternative.write_to(w)?;
-        }
 
         if self.is_i_frame {
             write!(w, "#EXT-X-I-FRAME-STREAM-INF:")?;

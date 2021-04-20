@@ -56,6 +56,13 @@ fn playlist_master_with_alternatives() {
     assert!(print_parse_playlist_test("master-with-alternatives.m3u8"));
 }
 
+
+#[test]
+fn playlist_master_with_alternatives_2_3() {
+    assert!(print_parse_playlist_test("master-with-alternatives-2.m3u8"));
+}
+
+
 #[test]
 fn playlist_master_with_i_frame_stream_inf() {
     assert!(print_parse_playlist_test("master-with-i-frame-stream-inf.m3u8"));
@@ -294,6 +301,21 @@ fn create_and_parse_master_playlist_full() {
 
     let mut playlist_original = Playlist::MasterPlaylist(MasterPlaylist {
         version: 6,
+        alternatives: vec! [
+            AlternativeMedia {
+                media_type: AlternativeMediaType::Audio,
+                uri: Some("alt-media-uri".into()),
+                group_id: "group-id".into(),
+                language: Some("language".into()),
+                assoc_language: Some("assoc-language".into()),
+                name: "Xmedia".into(),
+                default: true, // Its absence indicates an implicit value of NO
+                autoselect: true, // Its absence indicates an implicit value of NO
+                forced: true, // Its absence indicates an implicit value of NO
+                instream_id: Some("instream_id".into()),
+                characteristics: Some("characteristics".into()),
+            }
+        ],
         variants: vec![
             VariantStream {
                 is_i_frame: false,
@@ -307,21 +329,7 @@ fn create_and_parse_master_playlist_full() {
                 video: Some("video".into()),
                 subtitles: Some("subtitles".into()),
                 closed_captions: Some("closed_captions".into()),
-                alternatives: vec! [
-                    AlternativeMedia {
-                        media_type: AlternativeMediaType::Audio,
-                        uri: Some("alt-media-uri".into()),
-                        group_id: "group-id".into(),
-                        language: Some("language".into()),
-                        assoc_language: Some("assoc-language".into()),
-                        name: "Xmedia".into(),
-                        default: true, // Its absence indicates an implicit value of NO
-                        autoselect: true, // Its absence indicates an implicit value of NO
-                        forced: true, // Its absence indicates an implicit value of NO
-                        instream_id: Some("instream_id".into()),
-                        characteristics: Some("characteristics".into()),
-                    }
-                ]
+
             }
         ],
         session_data: Some(SessionData {
