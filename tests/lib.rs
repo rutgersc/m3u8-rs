@@ -314,6 +314,7 @@ fn create_and_parse_master_playlist_full() {
                 forced: true, // Its absence indicates an implicit value of NO
                 instream_id: Some("instream_id".into()),
                 characteristics: Some("characteristics".into()),
+                channels: Some("channels".into()),
             }
         ],
         variants: vec![
@@ -325,11 +326,11 @@ fn create_and_parse_master_playlist_full() {
                 codecs: Some("TheCODEC".into()),
                 resolution: Some("1000x3000".into()),
                 frame_rate: Some("60".into()),
+                hdcp_level: Some("NONE".into()),
                 audio: Some("audio".into()),
                 video: Some("video".into()),
                 subtitles: Some("subtitles".into()),
                 closed_captions: Some("closed_captions".into()),
-
             }
         ],
         session_data: Some(SessionData {

@@ -179,6 +179,7 @@ pub struct VariantStream {
     pub codecs: Option<String>,
     pub resolution: Option<String>,
     pub frame_rate: Option<String>,
+    pub hdcp_level: Option<String>,
     pub audio: Option<String>,
     pub video: Option<String>,
     pub subtitles: Option<String>,
@@ -197,6 +198,7 @@ impl VariantStream {
             codecs: attrs.remove("CODECS"),
             resolution: attrs.remove("RESOLUTION"),
             frame_rate: attrs.remove("FRAME-RATE"),
+            hdcp_level: attrs.remove("HDCP-LEVEL"),
             audio: attrs.remove("AUDIO"),
             video: attrs.remove("VIDEO"),
             subtitles: attrs.remove("SUBTITLES"),
@@ -229,6 +231,7 @@ impl VariantStream {
         write_some_attribute_quoted!(w, ",CODECS", &self.codecs)?;
         write_some_attribute!(w, ",RESOLUTION", &self.resolution)?;
         write_some_attribute!(w, ",FRAME-RATE", &self.frame_rate)?;
+        write_some_attribute!(w, ",HDCP-LEVEL", &self.hdcp_level)?;
         write_some_attribute_quoted!(w, ",VIDEO", &self.video)
     }
 }
@@ -256,6 +259,7 @@ pub struct AlternativeMedia {
     pub forced: bool, // Its absence indicates an implicit value of NO
     pub instream_id: Option<String>,
     pub characteristics: Option<String>,
+    pub channels: Option<String>,
 }
 
 impl AlternativeMedia {
@@ -275,6 +279,7 @@ impl AlternativeMedia {
             forced: bool_default_false!(attrs.remove("FORCED")),
             instream_id: attrs.remove("INSTREAM-ID"),
             characteristics: attrs.remove("CHARACTERISTICS"),
+            channels: attrs.remove("CHANNELS"),
         }
     }
 
@@ -291,6 +296,7 @@ impl AlternativeMedia {
         if self.forced { write!(w, ",FORCED=YES")?; }
         write_some_attribute_quoted!(w, ",INSTREAM-ID", &self.instream_id)?;
         write_some_attribute_quoted!(w, ",CHARACTERISTICS", &self.characteristics)?;
+        write_some_attribute_quoted!(w, ",CHANNELS", &self.channels)?;
         write!(w, "\n")
     }
 }
