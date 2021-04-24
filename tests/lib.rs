@@ -333,19 +333,22 @@ fn create_and_parse_master_playlist_full() {
                 closed_captions: Some("closed_captions".into()),
             }
         ],
-        session_data: Some(SessionData {
-            data_id: "****".into(),
-            value: "%%%%".into(),
-            uri: "++++".into(),
-            language: Some("SessionDataLanguage".into()),
-        }),
-        session_key: Some(SessionKey(Key {
-            method: "AES-128".into(),
-            uri: Some("https://secure.domain.com".into()),
-            iv: Some("0xb059217aa2649ce170b734".into()),
-            keyformat: Some("xXkeyformatXx".into()),
-            keyformatversions: Some("xXFormatVers".into()),
-        })),
+        session_data: vec![
+            SessionData {
+                data_id: "****".into(),
+                field: SessionDataField::Value("%%%%".to_string()),
+                language: Some("SessionDataLanguage".into()),
+            }
+        ],
+        session_key: vec![
+            SessionKey(Key {
+                method: "AES-128".into(),
+                uri: Some("https://secure.domain.com".into()),
+                iv: Some("0xb059217aa2649ce170b734".into()),
+                keyformat: Some("xXkeyformatXx".into()),
+                keyformatversions: Some("xXFormatVers".into()),
+            })
+        ],
         start: Some(Start {
             time_offset: "123123123".into(),
             precise: Some("YES".into()),

@@ -65,8 +65,8 @@ impl Playlist {
 pub struct MasterPlaylist {
     pub version: usize,
     pub variants: Vec<VariantStream>,
-    pub session_data: Option<SessionData>,
-    pub session_key: Option<SessionKey>,
+    pub session_data: Vec<SessionData>,
+    pub session_key: Vec<SessionKey>,
     pub start: Option<Start>,
     pub independent_segments: bool,
     pub alternatives: Vec<AlternativeMedia>, // EXT-X-MEDIA tags
@@ -74,7 +74,6 @@ pub struct MasterPlaylist {
 }
 
 impl MasterPlaylist {
-
     pub fn from_tags(mut tags: Vec<MasterPlaylistTag>) -> MasterPlaylist {
         let mut master_playlist = MasterPlaylist::default();
 
@@ -95,10 +94,10 @@ impl MasterPlaylist {
                     }
                 }
                 MasterPlaylistTag::SessionData(data) => {
-                    master_playlist.session_data = Some(data);
+                    master_playlist.session_data.push(data);
                 }
                 MasterPlaylistTag::SessionKey(key) => {
-                    master_playlist.session_key = Some(key);
+                    master_playlist.session_key.push(key);
                 }
                 MasterPlaylistTag::Start(s) => {
                     master_playlist.start = Some(s);
@@ -131,10 +130,10 @@ impl MasterPlaylist {
         for variant in &self.variants {
             variant.write_to(w)?;
         }
-        if let Some(ref session_data) = self.session_data {
+        for session_data in &self.session_data {
             session_data.write_to(w)?;
         }
-        if let Some(ref session_key) = self.session_key {
+        for session_key in &self.session_key {
             session_key.write_to(w)?;
         }
         if let Some(ref start) = self.start {
@@ -343,6 +342,9 @@ impl fmt::Display for AlternativeMediaType {
 
 /// [`#EXT-X-SESSION-KEY:<attribute-list>`]
 /// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.5)
+/// The EXT-X-SESSION-KEY tag allows encryption keys from Media Playlists
+/// to be specified in a Master Playlist.  This allows the client to
+/// preload these keys without having to read the Media Playlist(s) first.
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct SessionKey(pub Key);
 
@@ -354,34 +356,56 @@ impl SessionKey {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum SessionDataField {
+    Value(String),
+    Uri(String)
+}
+
 /// [`#EXT-X-SESSION-DATA:<attribute-list>`]
 /// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.4)
-/// The EXT-X-SESSION-KEY tag allows encryption keys from Media Playlists
-/// to be specified in a Master Playlist.  This allows the client to
-/// preload these keys without having to read the Media Playlist(s) first.
-#[derive(Debug, Default, PartialEq, Clone)]
+/// The EXT-X-SESSION-DATA tag allows arbitrary session data to be carried
+/// in a Master Playlist.
+#[derive(Debug, PartialEq, Clone)]
 pub struct SessionData {
     pub data_id: String,
-    pub value: String,
-    pub uri: String,
+    pub field: SessionDataField,
     pub language: Option<String>,
 }
 
 impl SessionData {
-    pub fn from_hashmap(mut attrs: HashMap<String, String>) -> SessionData {
-        SessionData {
-            data_id: attrs.remove("DATA-ID").unwrap_or_else(String::new),
-            value: attrs.remove("VALUE").unwrap_or_else(String::new),
-            uri: attrs.remove("URI").unwrap_or_else(String::new),
+    pub fn from_hashmap(mut attrs: HashMap<String, String>) -> Result<SessionData, String> {
+        let data_id = match attrs.remove("DATA-ID") {
+            Some(data_id) => data_id,
+            None => return Err("EXT-X-SESSION-DATA field without DATA-ID".to_string())
+        };
+
+        let value = attrs.remove("VALUE");
+        let uri = attrs.remove("URI");
+
+        // SessionData must contain either a VALUE or a URI,
+        // but not both https://tools.ietf.org/html/rfc8216#section-4.3.4.4
+        let field = match (value, uri) {
+            (Some(value), None) => SessionDataField::Value(value),
+            (None, Some(uri)) => SessionDataField::Uri(uri),
+            (Some(_), Some(_)) => return Err(format!["EXT-X-SESSION-DATA tag {} contains both a value and a uri", data_id]),
+            (None, None) => return Err(format!["EXT-X-SESSION-DATA tag {} must contain either a value or a uri", data_id]),
+        };
+
+        Ok(SessionData {
+            data_id,
+            field,
             language: attrs.remove("LANGUAGE"),
-        }
+        })
     }
 
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         write!(w, "#EXT-X-SESSION-DATA:")?;
         write!(w, "DATA-ID=\"{}\"", self.data_id)?;
-        write!(w, ",VALUE=\"{}\"", self.value)?;
-        write!(w, ",URI=\"{}\"", self.uri)?;
+        match &self.field {
+          SessionDataField::Value(value) => write!(w, ",VALUE=\"{}\"", value)?,
+          SessionDataField::Uri(uri) => write!(w, ",URI=\"{}\"", uri)?,
+        };
         write_some_attribute_quoted!(w, ",LANGUAGE", &self.language)?;
         write!(w, "\n")
     }

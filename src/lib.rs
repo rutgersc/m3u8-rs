@@ -319,8 +319,9 @@ named!(pub alternative_media_tag<AlternativeMedia>,
 );
 
 named!(pub session_data_tag<SessionData>,
-    do_parse!( tag!("#EXT-X-SESSION-DATA:") >> attributes: key_value_pairs >>
-            ( SessionData::from_hashmap(attributes)))
+    do_parse!( tag!("#EXT-X-SESSION-DATA:") >>
+           session_data: map_res!(key_value_pairs, |attrs| SessionData::from_hashmap(attrs)) >>
+           ( session_data))
 );
 
 named!(pub session_key_tag<SessionKey>,
