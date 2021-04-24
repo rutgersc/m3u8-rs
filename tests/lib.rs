@@ -405,7 +405,7 @@ fn create_and_parse_media_playlist_full() {
                 uri: "20140311T113819-01-338559live.ts".into(),
                 duration: 2.002,
                 title: Some("338559".into()),
-                byte_range: Some(ByteRange::from("137116@497036")),
+                byte_range: Some(ByteRange { length: 137116, offset: Some(4559) }),
                 discontinuity: true,
                 key: Some(Key {
                     method: "AES-128".into(),
@@ -416,7 +416,7 @@ fn create_and_parse_media_playlist_full() {
                 }),
                 map: Some(Map {
                     uri: "www.map-uri.com".into(),
-                    byte_range: Some(ByteRange::from("137116@497036")),
+                    byte_range: Some(ByteRange { length: 137116, offset: Some(4559) }),
                 }),
                 program_date_time: Some("broodlordinfestorgg".into()),
                 daterange: None,

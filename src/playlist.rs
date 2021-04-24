@@ -7,7 +7,6 @@ use std::io::Write;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::fmt;
-use super::*;
 use std::f32;
 
 macro_rules! write_some_attribute_quoted {
@@ -74,48 +73,8 @@ pub struct MasterPlaylist {
 }
 
 impl MasterPlaylist {
-    pub fn from_tags(mut tags: Vec<MasterPlaylistTag>) -> MasterPlaylist {
-        let mut master_playlist = MasterPlaylist::default();
 
-        while let Some(tag) = tags.pop() {
-            match tag {
-                MasterPlaylistTag::Version(v) => {
-                    master_playlist.version = v;
-                }
-                MasterPlaylistTag::AlternativeMedia(v) => {
-                    master_playlist.alternatives.push(v);
-                }
-                MasterPlaylistTag::VariantStream(stream) => {
-                    master_playlist.variants.push(stream);
-                }
-                MasterPlaylistTag::Uri(uri) => {
-                    if let Some(stream) = master_playlist.get_newest_variant() {
-                        stream.uri = uri;
-                    }
-                }
-                MasterPlaylistTag::SessionData(data) => {
-                    master_playlist.session_data.push(data);
-                }
-                MasterPlaylistTag::SessionKey(key) => {
-                    master_playlist.session_key.push(key);
-                }
-                MasterPlaylistTag::Start(s) => {
-                    master_playlist.start = Some(s);
-                }
-                MasterPlaylistTag::IndependentSegments => {
-                    master_playlist.independent_segments = true;
-                }
-                MasterPlaylistTag::Unknown(unknown) => {
-                    master_playlist.unknown_tags.push(unknown);
-                }
-                _ => (),
-            }
-        }
-
-        master_playlist
-    }
-
-    fn get_newest_variant(&mut self) -> Option<&mut VariantStream> {
+    pub fn get_newest_variant(&mut self) -> Option<&mut VariantStream> {
         self.variants.iter_mut().rev().find(|v| !v.is_i_frame)
     }
 
@@ -445,87 +404,6 @@ pub struct MediaPlaylist {
 
 impl MediaPlaylist {
 
-    pub fn from_tags(mut tags: Vec<MediaPlaylistTag>) -> MediaPlaylist {
-        let mut media_playlist = MediaPlaylist::default();
-        let mut next_segment = MediaSegment::empty();
-        let mut encryption_key = None;
-        let mut map = None;
-
-        while let Some(tag) = tags.pop() {
-
-            match tag {
-                MediaPlaylistTag::Version(v) => {
-                    media_playlist.version = v;
-                }
-                MediaPlaylistTag::TargetDuration(d) => {
-                    media_playlist.target_duration = d;
-                }
-                MediaPlaylistTag::MediaSequence(n) => {
-                    media_playlist.media_sequence = n;
-                }
-                MediaPlaylistTag::DiscontinuitySequence(n) => {
-                    media_playlist.discontinuity_sequence = n;
-                }
-                MediaPlaylistTag::EndList => {
-                    media_playlist.end_list = true;
-                }
-                MediaPlaylistTag::PlaylistType(t) => {
-                    media_playlist.playlist_type = Some(t);
-                }
-                MediaPlaylistTag::IFramesOnly => {
-                    media_playlist.i_frames_only = true;
-                }
-                MediaPlaylistTag::Start(s) => {
-                    media_playlist.start = Some(s);
-                }
-                MediaPlaylistTag::IndependentSegments => {
-                    media_playlist.independent_segments = true;
-                }
-                MediaPlaylistTag::Segment(segment_tag) => {
-                    match segment_tag {
-                        SegmentTag::Extinf(d, t) => {
-                            next_segment.duration = d;
-                            next_segment.title = t;
-                        }
-                        SegmentTag::ByteRange(b) => {
-                            next_segment.byte_range = Some(b);
-                        }
-                        SegmentTag::Discontinuity => {
-                            next_segment.discontinuity = true;
-                        }
-                        SegmentTag::Key(k) => {
-                            encryption_key = Some(k);
-                        }
-                        SegmentTag::Map(m) => {
-                            map = Some(m);
-                        }
-                        SegmentTag::ProgramDateTime(d) => {
-                            next_segment.program_date_time = Some(d);
-                        }
-                        SegmentTag::DateRange(d) => {
-                            next_segment.daterange = Some(d);
-                        }
-                        SegmentTag::Unknown(t) => {
-                            media_playlist.unknown_tags.push(t);
-                        }
-                        SegmentTag::Uri(u) => {
-                            next_segment.key = encryption_key.clone();
-                            next_segment.map = map.clone();
-                            next_segment.uri = u;
-                            media_playlist.segments.push(next_segment);
-                            next_segment = MediaSegment::empty();
-                            encryption_key = None;
-                            map = None;
-                        }
-                        _ => (),
-                    }
-                }
-                _ => (),
-            }
-        }
-        media_playlist
-    }
-
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         writeln!(w, "{}" ,"#EXTM3U")?;
         writeln!(w, "#EXT-X-VERSION:{}", self.version)?;
@@ -724,13 +602,6 @@ pub struct Map {
 }
 
 impl Map {
-    pub fn from_hashmap(mut attrs: HashMap<String, String>) -> Map {
-        Map {
-            uri: attrs.remove("URI").unwrap_or_default(),
-            byte_range: attrs.remove("BYTERANGE").map(ByteRange::from),
-        }
-    }
-
     pub fn write_attributes_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         write!(w, "URI=\"{}\"", self.uri)?;
         if let Some(ref byte_range) = self.byte_range {
@@ -761,22 +632,6 @@ impl ByteRange {
             write!(w, "@{}", offset)?;
         }
         Ok(())
-    }
-}
-
-impl From<String> for ByteRange {
-    fn from(s: String) -> Self {
-        let w: &str = &s;
-        ByteRange::from(w)
-    }
-}
-
-impl<'a> From<&'a str> for ByteRange {
-    fn from(s: &'a str) -> Self {
-        match byte_range_val(s.as_bytes()) {
-            IResult::Ok((_, br)) => br,
-            _ => panic!("Should not happen"),
-        }
     }
 }
 
