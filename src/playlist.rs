@@ -69,7 +69,6 @@ pub struct MasterPlaylist {
     pub start: Option<Start>,
     pub independent_segments: bool,
     pub alternatives: Vec<AlternativeMedia>, // EXT-X-MEDIA tags
-    pub unknown_tags: Vec<ExtTag>
 }
 
 impl MasterPlaylist {
@@ -100,9 +99,6 @@ impl MasterPlaylist {
         }
         if self.independent_segments {
             writeln!(w, "#EXT-X-INDEPENDENT-SEGMENTS")?;
-        }
-        for unknown_tag in &self.unknown_tags {
-            write!(w, "#EXT-{}:{}\n", unknown_tag.tag, unknown_tag.rest)?;
         }
 
         Ok(())
@@ -398,8 +394,6 @@ pub struct MediaPlaylist {
     pub start: Option<Start>,
     /// `#EXT-X-INDEPENDENT-SEGMENTS`
     pub independent_segments: bool,
-    /// `#EXT-X-` 
-    pub unknown_tags: Vec<ExtTag>
 }
 
 impl MediaPlaylist {
@@ -432,9 +426,6 @@ impl MediaPlaylist {
         }
         for segment in &self.segments {
             segment.write_to(w)?;
-        }
-        for unknown_tag in &self.unknown_tags {
-            write!(w, "#EXT-{}:{}\n", unknown_tag.tag, unknown_tag.rest)?;
         }
 
         Ok(())
@@ -501,6 +492,8 @@ pub struct MediaSegment {
     pub program_date_time: Option<String>,
     /// `#EXT-X-DATERANGE:<attribute-list>`
     pub daterange: Option<String>,
+    /// `#EXT-`
+    pub unknown_tags: Vec<ExtTag>,
 }
 
 impl MediaSegment {
@@ -533,6 +526,13 @@ impl MediaSegment {
         }
         if let Some(ref v) = self.daterange {
             writeln!(w, "#EXT-X-DATERANGE:{}", v)?;
+        }
+        for unknown_tag in &self.unknown_tags {
+            write!(w, "#EXT-{}", unknown_tag.tag)?;
+            if let Some(v) = &unknown_tag.rest {
+                writeln!(w, ":{}", v)?;
+            }
+            write!(w, "\n")?;
         }
 
         write!(w, "#EXTINF:{},", self.duration)?;
@@ -689,6 +689,6 @@ impl Start {
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct ExtTag {
     pub tag: String,
-    pub rest: String,
+    pub rest: Option<String>,
 }
 

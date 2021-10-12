@@ -85,6 +85,26 @@ fn playlist_media_without_segments() {
     assert!(print_parse_playlist_test("media-playlist-without-segments.m3u8"));
 }
 
+#[test]
+fn playlist_media_with_cues() {
+    assert!(print_parse_playlist_test("media-playlist-with-cues.m3u8"));
+}
+
+#[test]
+fn playlist_media_with_cues1() {
+    assert!(print_parse_playlist_test("media-playlist-with-cues-1.m3u8"));
+}
+
+#[test]
+fn playlist_media_with_scte35() {
+    assert!(print_parse_playlist_test("media-playlist-with-scte35.m3u8"));
+}
+
+#[test]
+fn playlist_media_with_scte35_1() {
+    assert!(print_parse_playlist_test("media-playlist-with-scte35-1.m3u8"));
+}
+
 // -----------------------------------------------------------------------------------------------
 // Playlist with no newline end
 
@@ -114,10 +134,10 @@ fn playlist_type_is_master() {
 }
 
 // #[test]
-// fn playlist_type_with_unkown_tag() {
+// fn playlist_type_with_unknown_tag() {
 //     let input = get_sample_playlist("!!");
 //     let result = is_master_playlist(input.as_bytes());
-//     println!("Playlist_type_with_unkown_tag is master playlist: {:?}", result);
+//     println!("Playlist_type_with_unknown_tag is master playlist: {:?}", result);
 //     assert_eq!(true, result);
 // }
 
@@ -196,6 +216,22 @@ fn test_key_value_pair() {
 }
 
 #[test]
+fn ext_with_value() {
+    assert_eq!(
+        ext_tag(b"#EXT-X-CUE-OUT:DURATION=30\nxxx"),
+        Result::Ok((b"xxx".as_bytes(), ExtTag { tag: "X-CUE-OUT".into(), rest: Some("DURATION=30".into()) }))
+    );
+}
+
+#[test]
+fn ext_without_value() {
+    assert_eq!(
+        ext_tag(b"#EXT-X-CUE-IN\nxxx"),
+        Result::Ok((b"xxx".as_bytes(), ExtTag { tag: "X-CUE-IN".into(), rest: None }))
+    );
+}
+
+#[test]
 fn comment() {
     assert_eq!(
         comment_tag(b"#Hello\nxxx"),
@@ -213,7 +249,7 @@ fn quotes() {
 
 #[test]
 fn consume_line_empty() {
-    let expected = Result::Ok(("rest".as_bytes(), "".to_string())); 
+    let expected = Result::Ok(("rest".as_bytes(), "".to_string()));
     let actual = consume_line(b"\r\nrest");
     assert_eq!(expected, actual);
 }
@@ -354,7 +390,6 @@ fn create_and_parse_master_playlist_full() {
             precise: Some("YES".into()),
         }),
         independent_segments: true,
-        unknown_tags: vec![],
     });
     let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
     assert_eq!(playlist_original, playlist_parsed);
@@ -420,9 +455,14 @@ fn create_and_parse_media_playlist_full() {
                 }),
                 program_date_time: Some("broodlordinfestorgg".into()),
                 daterange: None,
+                unknown_tags: vec![
+                    ExtTag {
+                        tag: "X-CUE-OUT".into(),
+                        rest: Some("DURATION=2.002".into())
+                    }
+                ]
             },
         ],
-        unknown_tags: vec![],
     });
     let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
     assert_eq!(playlist_original, playlist_parsed);

@@ -104,7 +104,7 @@ use playlist::*;
 /// ```
 /// use std::io::Read;
 /// use m3u8_rs::playlist::{Playlist};
-/// 
+///
 /// let mut file = std::fs::File::open("playlist.m3u8").unwrap();
 /// let mut bytes: Vec<u8> = Vec::new();
 /// file.read_to_end(&mut bytes).unwrap();
@@ -129,8 +129,8 @@ pub fn parse_playlist(input: &[u8]) -> IResult<&[u8], Playlist> {
 }
 
 /// Parses an m3u8 playlist just like `parse_playlist`, except that this returns an [std::result::Result](std::result::Result) instead of a [nom::IResult](https://docs.rs/nom/1.2.3/nom/enum.IResult.html).
-/// However, since [nom::IResult](nom::IResult) is now an [alias to Result](https://github.com/Geal/nom/blob/master/doc/upgrading_to_nom_5.md), this is no longer needed. 
-/// 
+/// However, since [nom::IResult](nom::IResult) is now an [alias to Result](https://github.com/Geal/nom/blob/master/doc/upgrading_to_nom_5.md), this is no longer needed.
+///
 /// # Examples
 ///
 /// ```
@@ -274,7 +274,6 @@ pub enum MasterPlaylistTag {
     SessionKey(SessionKey),
     Start(Start),
     IndependentSegments,
-    Unknown(ExtTag),
     Comment(String),
     Uri(String),
 }
@@ -292,7 +291,6 @@ pub fn master_playlist_tag(input: &[u8]) -> IResult<&[u8], MasterPlaylistTag> {
         | map!(start_tag, MasterPlaylistTag::Start)
         | map!(tag!("#EXT-X-INDEPENDENT-SEGMENTS"), |_| MasterPlaylistTag::IndependentSegments)
 
-        | map!(ext_tag, MasterPlaylistTag::Unknown)
         | map!(comment_tag, MasterPlaylistTag::Comment)
 
         | map!(consume_line, MasterPlaylistTag::Uri)
@@ -329,9 +327,6 @@ pub fn master_playlist_from_tags(mut tags: Vec<MasterPlaylistTag>) -> MasterPlay
             }
             MasterPlaylistTag::IndependentSegments => {
                 master_playlist.independent_segments = true;
-            }
-            MasterPlaylistTag::Unknown(unknown) => {
-                master_playlist.unknown_tags.push(unknown);
             }
             _ => (),
         }
@@ -392,6 +387,7 @@ pub enum MediaPlaylistTag {
     PlaylistType(MediaPlaylistType),
     IFramesOnly,
     Start(Start),
+    Unknown(ExtTag),
     IndependentSegments,
 }
 
@@ -474,7 +470,7 @@ pub fn media_playlist_from_tags(mut tags: Vec<MediaPlaylistTag>) -> MediaPlaylis
                         next_segment.daterange = Some(d);
                     }
                     SegmentTag::Unknown(t) => {
-                        media_playlist.unknown_tags.push(t);
+                        next_segment.unknown_tags.push(t);
                     }
                     SegmentTag::Uri(u) => {
                         next_segment.key = encryption_key.clone();
@@ -588,13 +584,14 @@ named!(pub start_tag<Start>,
 
 named!(pub ext_tag<ExtTag>,
     do_parse!(
-          tag!("#EXT-")
-        >> tag: map_res!(take_until!(":"), from_utf8_slice)
+        tag!("#EXT-")
+        >> tag: map_res!(is_not!("\r\n:"), from_utf8_slice)
+        >> opt!(tag!(":"))
+        >> rest: opt!(map_res!(is_not!("\r\n"), from_utf8_slice))
         >> take!(1)
-        >> rest: map_res!(is_not!("\r\n"), from_utf8_slice)
-        >> take!(1)
-        >>
-        (ExtTag { tag: tag, rest: rest })
+        >> (
+            ExtTag { tag: tag, rest: rest }
+        )
     )
 );
 
