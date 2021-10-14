@@ -715,7 +715,7 @@ mod test {
         };
 
         let mut output = Vec::new();
-        write!(output, "{}", cue_out_tag);
+        write!(output, "{}", cue_out_tag).unwrap();
 
         assert_eq!(std::str::from_utf8(output.as_slice()).unwrap(), "#EXT-X-CUE-OUT:DURATION=30")
     }
@@ -728,7 +728,7 @@ mod test {
         };
 
         let mut output = Vec::new();
-        write!(output, "{}", cue_in_tag);
+        write!(output, "{}", cue_in_tag).unwrap();
 
         assert_eq!(std::str::from_utf8(output.as_slice()).unwrap(), "#EXT-X-CUE-IN")
     }
