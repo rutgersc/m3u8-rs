@@ -276,6 +276,7 @@ pub enum MasterPlaylistTag {
     IndependentSegments,
     Comment(String),
     Uri(String),
+    Unknown(ExtTag),
 }
 
 pub fn master_playlist_tag(input: &[u8]) -> IResult<&[u8], MasterPlaylistTag> {
@@ -290,6 +291,8 @@ pub fn master_playlist_tag(input: &[u8]) -> IResult<&[u8], MasterPlaylistTag> {
         | map!(session_key_tag, MasterPlaylistTag::SessionKey)
         | map!(start_tag, MasterPlaylistTag::Start)
         | map!(tag!("#EXT-X-INDEPENDENT-SEGMENTS"), |_| MasterPlaylistTag::IndependentSegments)
+
+        | map!(ext_tag, MasterPlaylistTag::Unknown)
 
         | map!(comment_tag, MasterPlaylistTag::Comment)
 
@@ -327,6 +330,9 @@ pub fn master_playlist_from_tags(mut tags: Vec<MasterPlaylistTag>) -> MasterPlay
             }
             MasterPlaylistTag::IndependentSegments => {
                 master_playlist.independent_segments = true;
+            }
+            MasterPlaylistTag::Unknown(unknown) => {
+                master_playlist.unknown_tags.push(unknown);
             }
             _ => (),
         }

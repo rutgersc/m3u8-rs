@@ -390,6 +390,7 @@ fn create_and_parse_master_playlist_full() {
             precise: Some("YES".into()),
         }),
         independent_segments: true,
+        unknown_tags: vec![],
     });
     let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
     assert_eq!(playlist_original, playlist_parsed);
