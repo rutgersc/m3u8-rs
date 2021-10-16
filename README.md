@@ -67,12 +67,12 @@ match parsed {
 }
 ```
 
-Currently the parser will succeed even if REQUIRED attributes/tags are missing from a playlist (such as the `#EXT-X-VERSION` tag).
+Currently, the parser will succeed even if REQUIRED attributes/tags are missing from a playlist (such as the `#EXT-X-VERSION` tag).
 The option to abort parsing when attributes/tags are missing may be something to add later on.
 
 # Structure Summary
 
-All of the details about the structs are taken from https://tools.ietf.org/html/draft-pantos-http-live-streaming-19.
+All the details about the structs are taken from https://tools.ietf.org/html/draft-pantos-http-live-streaming-19.
 
 
 ```rust
@@ -91,6 +91,8 @@ pub struct MasterPlaylist {
     pub session_key: Option<SessionKey>,
     pub start: Option<Start>,
     pub independent_segments: bool,
+    pub alternatives: Vec<AlternativeMedia>,
+    pub unknown_tags: Vec<ExtTag>,
 }
 
 pub struct MediaPlaylist {
@@ -131,6 +133,7 @@ pub struct MediaSegment {
     pub map: Option<Map>,
     pub program_date_time: Option<String>,
     pub daterange: Option<String>,
+    pub unknown_tags: Vec<ExtTag>,
 }
 
 ```

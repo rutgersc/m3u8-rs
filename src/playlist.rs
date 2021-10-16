@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::fmt;
 use std::f32;
+use std::fmt::Display;
 
 macro_rules! write_some_attribute_quoted {
     ($w:expr, $tag:expr, $o:expr) => (
@@ -69,7 +70,7 @@ pub struct MasterPlaylist {
     pub start: Option<Start>,
     pub independent_segments: bool,
     pub alternatives: Vec<AlternativeMedia>, // EXT-X-MEDIA tags
-    pub unknown_tags: Vec<ExtTag>
+    pub unknown_tags: Vec<ExtTag>,
 }
 
 impl MasterPlaylist {
@@ -102,7 +103,7 @@ impl MasterPlaylist {
             writeln!(w, "#EXT-X-INDEPENDENT-SEGMENTS")?;
         }
         for unknown_tag in &self.unknown_tags {
-            write!(w, "#EXT-{}:{}\n", unknown_tag.tag, unknown_tag.rest)?;
+            writeln!(w, "{}", unknown_tag)?;
         }
 
         Ok(())
@@ -398,8 +399,6 @@ pub struct MediaPlaylist {
     pub start: Option<Start>,
     /// `#EXT-X-INDEPENDENT-SEGMENTS`
     pub independent_segments: bool,
-    /// `#EXT-X-` 
-    pub unknown_tags: Vec<ExtTag>
 }
 
 impl MediaPlaylist {
@@ -432,9 +431,6 @@ impl MediaPlaylist {
         }
         for segment in &self.segments {
             segment.write_to(w)?;
-        }
-        for unknown_tag in &self.unknown_tags {
-            write!(w, "#EXT-{}:{}\n", unknown_tag.tag, unknown_tag.rest)?;
         }
 
         Ok(())
@@ -501,6 +497,8 @@ pub struct MediaSegment {
     pub program_date_time: Option<String>,
     /// `#EXT-X-DATERANGE:<attribute-list>`
     pub daterange: Option<String>,
+    /// `#EXT-`
+    pub unknown_tags: Vec<ExtTag>,
 }
 
 impl MediaSegment {
@@ -533,6 +531,9 @@ impl MediaSegment {
         }
         if let Some(ref v) = self.daterange {
             writeln!(w, "#EXT-X-DATERANGE:{}", v)?;
+        }
+        for unknown_tag in &self.unknown_tags {
+            writeln!(w, "{}", unknown_tag)?;
         }
 
         write!(w, "#EXTINF:{},", self.duration)?;
@@ -689,6 +690,46 @@ impl Start {
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct ExtTag {
     pub tag: String,
-    pub rest: String,
+    pub rest: Option<String>,
 }
 
+impl Display for ExtTag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#EXT-{}", self.tag)?;
+        if let Some(v) = &self.rest {
+            write!(f, ":{}", v)?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn ext_tag_with_value_is_printable() {
+        let cue_out_tag = ExtTag {
+            tag: "X-CUE-OUT".into(),
+            rest: Some("DURATION=30".into()),
+        };
+
+        let mut output = Vec::new();
+        write!(output, "{}", cue_out_tag).unwrap();
+
+        assert_eq!(std::str::from_utf8(output.as_slice()).unwrap(), "#EXT-X-CUE-OUT:DURATION=30")
+    }
+
+    #[test]
+    fn ext_tag_without_value_is_printable() {
+        let cue_in_tag = ExtTag {
+            tag: "X-CUE-IN".into(),
+            rest: None,
+        };
+
+        let mut output = Vec::new();
+        write!(output, "{}", cue_in_tag).unwrap();
+
+        assert_eq!(std::str::from_utf8(output.as_slice()).unwrap(), "#EXT-X-CUE-IN")
+    }
+}
