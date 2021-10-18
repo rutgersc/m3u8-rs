@@ -598,7 +598,7 @@ named!(pub duration_title_tag<(f32, Option<String>)>,
 named!(pub key<Key>, map!(key_value_pairs, Key::from_hashmap));
 
 named!(pub extmap<Map>, map!(key_value_pairs, |attrs| Map {
-    uri: attrs.get("URI").map(|u| u.clone()).unwrap_or_default(),
+    uri: attrs.get("URI").cloned().unwrap_or_default(),
     byte_range: attrs.get("BYTERANGE").map(|range| {
         match byte_range_val(range.as_bytes()) {
             IResult::Ok((_, br)) => br,
@@ -636,7 +636,7 @@ named!(pub ext_tag<ExtTag>,
         >> rest: opt!(map_res!(is_not!("\r\n"), from_utf8_slice))
         >> take!(1)
         >> (
-            ExtTag { tag: tag, rest: rest }
+            ExtTag { tag, rest }
         )
     )
 );

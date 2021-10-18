@@ -54,9 +54,9 @@ pub enum Playlist {
 
 impl Playlist {
     pub fn write_to<T: Write>(&self, writer: &mut T) -> std::io::Result<()> {
-        match self {
-            &Playlist::MasterPlaylist(ref pl) => pl.write_to(writer),
-            &Playlist::MediaPlaylist(ref pl) => pl.write_to(writer),
+        match *self {
+            Playlist::MasterPlaylist(ref pl) => pl.write_to(writer),
+            Playlist::MediaPlaylist(ref pl) => pl.write_to(writer),
         }
     }
 }
@@ -87,8 +87,7 @@ impl MasterPlaylist {
     }
 
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
-        writeln!(w, "{}", "#EXTM3U")?;
-        writeln!(w, "#EXT-X-VERSION:{}", self.version)?;
+        writeln!(w, "#EXTM3U\n#EXT-X-VERSION:{}", self.version)?;
 
         for alternative in &self.alternatives {
             alternative.write_to(w)?;
@@ -156,7 +155,7 @@ pub struct VariantStream {
 impl VariantStream {
     pub fn from_hashmap(mut attrs: HashMap<String, String>, is_i_frame: bool) -> VariantStream {
         VariantStream {
-            is_i_frame: is_i_frame,
+            is_i_frame,
             uri: attrs.remove("URI").unwrap_or_else(String::new),
             bandwidth: attrs.remove("BANDWIDTH").unwrap_or_else(String::new),
             average_bandwidth: attrs.remove("AVERAGE-BANDWIDTH"),
@@ -182,7 +181,7 @@ impl VariantStream {
             write_some_attribute_quoted!(w, ",AUDIO", &self.audio)?;
             write_some_attribute_quoted!(w, ",SUBTITLES", &self.subtitles)?;
             write_some_attribute_quoted!(w, ",CLOSED-CAPTIONS", &self.closed_captions)?;
-            write!(w, "\n")?;
+            writeln!(w)?;
             writeln!(w, "{}", self.uri)
         }
     }
@@ -235,7 +234,7 @@ impl AlternativeMedia {
             group_id: attrs.remove("GROUP-ID").unwrap_or_else(String::new),
             language: attrs.remove("LANGUAGE"),
             assoc_language: attrs.remove("ASSOC-LANGUAGE"),
-            name: attrs.remove("NAME").unwrap_or(String::new()),
+            name: attrs.remove("NAME").unwrap_or_default(),
             default: bool_default_false!(attrs.remove("DEFAULT")),
             autoselect: bool_default_false!(attrs.remove("AUTOSELECT")),
             forced: bool_default_false!(attrs.remove("FORCED")),
@@ -265,7 +264,7 @@ impl AlternativeMedia {
         write_some_attribute_quoted!(w, ",INSTREAM-ID", &self.instream_id)?;
         write_some_attribute_quoted!(w, ",CHARACTERISTICS", &self.characteristics)?;
         write_some_attribute_quoted!(w, ",CHANNELS", &self.channels)?;
-        write!(w, "\n")
+        writeln!(w)
     }
 }
 
@@ -305,11 +304,11 @@ impl fmt::Display for AlternativeMediaType {
         write!(
             f,
             "{}",
-            match self {
-                &AlternativeMediaType::Audio => "AUDIO",
-                &AlternativeMediaType::Video => "VIDEO",
-                &AlternativeMediaType::Subtitles => "SUBTITLES",
-                &AlternativeMediaType::ClosedCaptions => "CLOSEDCAPTIONS",
+            match *self {
+                AlternativeMediaType::Audio => "AUDIO",
+                AlternativeMediaType::Video => "VIDEO",
+                AlternativeMediaType::Subtitles => "SUBTITLES",
+                AlternativeMediaType::ClosedCaptions => "CLOSEDCAPTIONS",
             }
         )
     }
@@ -327,7 +326,7 @@ impl SessionKey {
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         write!(w, "#EXT-X-SESSION-KEY:")?;
         self.0.write_attributes_to(w)?;
-        write!(w, "\n")
+        writeln!(w)
     }
 }
 
@@ -392,7 +391,7 @@ impl SessionData {
             SessionDataField::Uri(uri) => write!(w, ",URI=\"{}\"", uri)?,
         };
         write_some_attribute_quoted!(w, ",LANGUAGE", &self.language)?;
-        write!(w, "\n")
+        writeln!(w)
     }
 }
 
@@ -428,8 +427,7 @@ pub struct MediaPlaylist {
 
 impl MediaPlaylist {
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
-        writeln!(w, "{}", "#EXTM3U")?;
-        writeln!(w, "#EXT-X-VERSION:{}", self.version)?;
+        writeln!(w, "#EXTM3U\n#EXT-X-VERSION:{}", self.version)?;
         writeln!(w, "#EXT-X-TARGETDURATION:{}", self.target_duration)?;
 
         if self.media_sequence != 0 {
@@ -490,9 +488,9 @@ impl fmt::Display for MediaPlaylistType {
         write!(
             f,
             "{}",
-            match self {
-                &MediaPlaylistType::Event => "EVENT",
-                &MediaPlaylistType::Vod => "VOD",
+            match *self {
+                MediaPlaylistType::Event => "EVENT",
+                MediaPlaylistType::Vod => "VOD",
             }
         )
     }
@@ -542,20 +540,20 @@ impl MediaSegment {
         if let Some(ref byte_range) = self.byte_range {
             write!(w, "#EXT-X-BYTERANGE:")?;
             byte_range.write_value_to(w)?;
-            write!(w, "\n")?;
+            writeln!(w)?;
         }
         if self.discontinuity {
-            writeln!(w, "{}", "#EXT-X-DISCONTINUITY")?;
+            writeln!(w, "#EXT-X-DISCONTINUITY")?;
         }
         if let Some(ref key) = self.key {
             write!(w, "#EXT-X-KEY:")?;
             key.write_attributes_to(w)?;
-            write!(w, "\n")?;
+            writeln!(w)?;
         }
         if let Some(ref map) = self.map {
             write!(w, "#EXT-X-MAP:")?;
             map.write_attributes_to(w)?;
-            write!(w, "\n")?;
+            writeln!(w)?;
         }
         if let Some(ref v) = self.program_date_time {
             writeln!(w, "#EXT-X-PROGRAM-DATE-TIME:{}", v)?;
@@ -572,7 +570,7 @@ impl MediaSegment {
         if let Some(ref v) = self.title {
             writeln!(w, "{}", v)?;
         } else {
-            write!(w, "\n")?;
+            writeln!(w)?;
         }
 
         writeln!(w, "{}", self.uri)
@@ -704,14 +702,14 @@ impl Start {
     pub fn from_hashmap(mut attrs: HashMap<String, String>) -> Start {
         Start {
             time_offset: attrs.remove("TIME-OFFSET").unwrap_or_else(String::new),
-            precise: attrs.remove("PRECISE").or(Some("NO".to_string())),
+            precise: attrs.remove("PRECISE").or_else(|| Some("NO".to_string())),
         }
     }
 
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         write!(w, "#EXT-X-START:TIME-OFFSET={}", self.time_offset)?;
         write_some_attribute!(w, ",PRECISE", &self.precise)?;
-        write!(w, "\n")
+        writeln!(w)
     }
 }
 
