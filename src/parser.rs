@@ -83,19 +83,21 @@ extern crate nom;
 
 pub mod playlist;
 
-use self::nom::character::complete::{digit1, multispace0, space0 };
-use self::nom::{IResult};
-use self::nom::{ delimited,none_of,peek,is_a,is_not,complete,terminated,tag,
-           alt,do_parse,opt,named,map,map_res,eof,many0,take,take_until,char};
-use self::nom::combinator::map;
+use self::nom::character::complete::{digit1, multispace0, space0};
 use self::nom::character::complete::{line_ending, not_line_ending};
-use std::str;
-use std::f32;
-use std::string;
-use std::str::FromStr;
-use std::result::Result;
-use std::collections::HashMap;
+use self::nom::combinator::map;
+use self::nom::IResult;
+use self::nom::{
+    alt, char, complete, delimited, do_parse, eof, is_a, is_not, many0, map, map_res, named,
+    none_of, opt, peek, tag, take, take_until, terminated,
+};
 use playlist::*;
+use std::collections::HashMap;
+use std::f32;
+use std::result::Result;
+use std::str;
+use std::str::FromStr;
+use std::string;
 
 /// Parse an m3u8 playlist.
 ///
@@ -104,7 +106,7 @@ use playlist::*;
 /// ```
 /// use std::io::Read;
 /// use m3u8_rs::playlist::{Playlist};
-/// 
+///
 /// let mut file = std::fs::File::open("playlist.m3u8").unwrap();
 /// let mut bytes: Vec<u8> = Vec::new();
 /// file.read_to_end(&mut bytes).unwrap();
@@ -124,13 +126,13 @@ use playlist::*;
 pub fn parse_playlist(input: &[u8]) -> IResult<&[u8], Playlist> {
     match is_master_playlist(input) {
         true => map(parse_master_playlist, Playlist::MasterPlaylist)(input),
-        false =>map(parse_media_playlist, Playlist::MediaPlaylist)(input),
+        false => map(parse_media_playlist, Playlist::MediaPlaylist)(input),
     }
 }
 
 /// Parses an m3u8 playlist just like `parse_playlist`, except that this returns an [std::result::Result](std::result::Result) instead of a [nom::IResult](https://docs.rs/nom/1.2.3/nom/enum.IResult.html).
-/// However, since [nom::IResult](nom::IResult) is now an [alias to Result](https://github.com/Geal/nom/blob/master/doc/upgrading_to_nom_5.md), this is no longer needed. 
-/// 
+/// However, since [nom::IResult](nom::IResult) is now an [alias to Result](https://github.com/Geal/nom/blob/master/doc/upgrading_to_nom_5.md), this is no longer needed.
+///
 /// # Examples
 ///
 /// ```
@@ -163,7 +165,9 @@ pub fn parse_master_playlist(input: &[u8]) -> IResult<&[u8], MasterPlaylist> {
 }
 
 /// Parse input as a master playlist
-pub fn parse_master_playlist_res(input: &[u8]) -> Result<MasterPlaylist, IResult<&[u8], MasterPlaylist>> {
+pub fn parse_master_playlist_res(
+    input: &[u8],
+) -> Result<MasterPlaylist, IResult<&[u8], MasterPlaylist>> {
     let parse_result = parse_master_playlist(input);
     match parse_result {
         IResult::Ok((_, playlist)) => Ok(playlist),
@@ -177,7 +181,9 @@ pub fn parse_media_playlist(input: &[u8]) -> IResult<&[u8], MediaPlaylist> {
 }
 
 /// Parse input as a media playlist
-pub fn parse_media_playlist_res(input: &[u8]) -> Result<MediaPlaylist, IResult<&[u8], MediaPlaylist>> {
+pub fn parse_media_playlist_res(
+    input: &[u8],
+) -> Result<MediaPlaylist, IResult<&[u8], MediaPlaylist>> {
     let parse_result = parse_media_playlist(input);
     match parse_result {
         IResult::Ok((_, playlist)) => Ok(playlist),
@@ -199,7 +205,6 @@ pub fn is_master_playlist(input: &[u8]) -> bool {
 /// - Some(true, tagstring): Line contains a master playlist tag
 /// - Some(false, tagstring): Line contains a media playlist tag
 pub fn contains_master_tag(input: &[u8]) -> Option<(bool, String)> {
-
     let mut is_master_opt = None;
     let mut current_input: &[u8] = input;
 
@@ -253,15 +258,19 @@ named!(pub is_master_playlist_tag_line(&[u8]) -> Option<(bool, String)>,
 // Master Playlist Tags
 // -----------------------------------------------------------------------------------------------
 
-pub fn parse_master_playlist_tags(input: &[u8]) ->  IResult<&[u8], Vec<MasterPlaylistTag>> {
-    do_parse!(input,
-         tags: many0!(complete!(do_parse!( m : master_playlist_tag >> multispace0 >> (m) )))
-     >>  opt!(eof!())
-     >>
-        ( {let mut tags_rev: Vec<MasterPlaylistTag> = tags; tags_rev.reverse(); tags_rev } )
+pub fn parse_master_playlist_tags(input: &[u8]) -> IResult<&[u8], Vec<MasterPlaylistTag>> {
+    do_parse!(
+        input,
+        tags: many0!(complete!(do_parse!(
+            m: master_playlist_tag >> multispace0 >> (m)
+        ))) >> opt!(eof!())
+            >> ({
+                let mut tags_rev: Vec<MasterPlaylistTag> = tags;
+                tags_rev.reverse();
+                tags_rev
+            })
     )
 }
-
 
 /// Contains all the tags required to parse a master playlist.
 #[derive(Debug)]
@@ -280,22 +289,22 @@ pub enum MasterPlaylistTag {
 }
 
 pub fn master_playlist_tag(input: &[u8]) -> IResult<&[u8], MasterPlaylistTag> {
-    alt!(input,
-          map!(m3u_tag, MasterPlaylistTag::M3U)
-        | map!(version_tag, MasterPlaylistTag::Version)
-
-        | map!(variant_stream_tag, MasterPlaylistTag::VariantStream)
-        | map!(variant_i_frame_stream_tag, MasterPlaylistTag::VariantStream)
-        | map!(alternative_media_tag, MasterPlaylistTag::AlternativeMedia)
-        | map!(session_data_tag, MasterPlaylistTag::SessionData)
-        | map!(session_key_tag, MasterPlaylistTag::SessionKey)
-        | map!(start_tag, MasterPlaylistTag::Start)
-        | map!(tag!("#EXT-X-INDEPENDENT-SEGMENTS"), |_| MasterPlaylistTag::IndependentSegments)
-
-        | map!(ext_tag, MasterPlaylistTag::Unknown)
-        | map!(comment_tag, MasterPlaylistTag::Comment)
-
-        | map!(consume_line, MasterPlaylistTag::Uri)
+    alt!(
+        input,
+        map!(m3u_tag, MasterPlaylistTag::M3U)
+            | map!(version_tag, MasterPlaylistTag::Version)
+            | map!(variant_stream_tag, MasterPlaylistTag::VariantStream)
+            | map!(variant_i_frame_stream_tag, MasterPlaylistTag::VariantStream)
+            | map!(alternative_media_tag, MasterPlaylistTag::AlternativeMedia)
+            | map!(session_data_tag, MasterPlaylistTag::SessionData)
+            | map!(session_key_tag, MasterPlaylistTag::SessionKey)
+            | map!(start_tag, MasterPlaylistTag::Start)
+            | map!(tag!("#EXT-X-INDEPENDENT-SEGMENTS"), |_| {
+                MasterPlaylistTag::IndependentSegments
+            })
+            | map!(ext_tag, MasterPlaylistTag::Unknown)
+            | map!(comment_tag, MasterPlaylistTag::Comment)
+            | map!(consume_line, MasterPlaylistTag::Uri)
     )
 }
 
@@ -340,7 +349,6 @@ pub fn master_playlist_from_tags(mut tags: Vec<MasterPlaylistTag>) -> MasterPlay
     master_playlist
 }
 
-
 named!(pub variant_stream_tag<VariantStream>,
     do_parse!(tag!("#EXT-X-STREAM-INF:") >> attributes: key_value_pairs >>
            ( VariantStream::from_hashmap(attributes, false)))
@@ -372,10 +380,16 @@ named!(pub session_key_tag<SessionKey>,
 // -----------------------------------------------------------------------------------------------
 
 pub fn parse_media_playlist_tags(input: &[u8]) -> IResult<&[u8], Vec<MediaPlaylistTag>> {
-    do_parse!(input,
-        tags: many0!(complete!(do_parse!(m:media_playlist_tag >> multispace0 >> (m) ))) >> opt!(eof!())
-     >>
-        ( {let mut tags_rev: Vec<MediaPlaylistTag> = tags; tags_rev.reverse(); tags_rev } )
+    do_parse!(
+        input,
+        tags: many0!(complete!(do_parse!(
+            m: media_playlist_tag >> multispace0 >> (m)
+        ))) >> opt!(eof!())
+            >> ({
+                let mut tags_rev: Vec<MediaPlaylistTag> = tags;
+                tags_rev.reverse();
+                tags_rev
+            })
     )
 }
 
@@ -396,20 +410,35 @@ pub enum MediaPlaylistTag {
 }
 
 pub fn media_playlist_tag(input: &[u8]) -> IResult<&[u8], MediaPlaylistTag> {
-    alt!(input,
-      map!(m3u_tag, MediaPlaylistTag::M3U)
-    | map!(version_tag, MediaPlaylistTag::Version)
-
-    | map!(do_parse!(tag!("#EXT-X-TARGETDURATION:") >> n:float >> (n)), MediaPlaylistTag::TargetDuration)
-    | map!(do_parse!(tag!("#EXT-X-MEDIA-SEQUENCE:") >> n:number >> (n)), MediaPlaylistTag::MediaSequence)
-    | map!(do_parse!(tag!("#EXT-X-DISCONTINUITY-SEQUENCE:") >> n:number >> (n)), MediaPlaylistTag::DiscontinuitySequence)
-    | map!(do_parse!(tag!("#EXT-X-PLAYLIST-TYPE:") >> t:playlist_type >> (t)), MediaPlaylistTag::PlaylistType)
-    | map!(tag!("#EXT-X-I-FRAMES-ONLY"), |_| MediaPlaylistTag::IFramesOnly)
-    | map!(start_tag, MediaPlaylistTag::Start)
-    | map!(tag!("#EXT-X-INDEPENDENT-SEGMENTS"), |_| MediaPlaylistTag::IndependentSegments)
-    | map!(tag!("#EXT-X-ENDLIST"), |_| MediaPlaylistTag::EndList)
-
-    | map!(media_segment_tag, MediaPlaylistTag::Segment)
+    alt!(
+        input,
+        map!(m3u_tag, MediaPlaylistTag::M3U)
+            | map!(version_tag, MediaPlaylistTag::Version)
+            | map!(
+                do_parse!(tag!("#EXT-X-TARGETDURATION:") >> n: float >> (n)),
+                MediaPlaylistTag::TargetDuration
+            )
+            | map!(
+                do_parse!(tag!("#EXT-X-MEDIA-SEQUENCE:") >> n: number >> (n)),
+                MediaPlaylistTag::MediaSequence
+            )
+            | map!(
+                do_parse!(tag!("#EXT-X-DISCONTINUITY-SEQUENCE:") >> n: number >> (n)),
+                MediaPlaylistTag::DiscontinuitySequence
+            )
+            | map!(
+                do_parse!(tag!("#EXT-X-PLAYLIST-TYPE:") >> t: playlist_type >> (t)),
+                MediaPlaylistTag::PlaylistType
+            )
+            | map!(tag!("#EXT-X-I-FRAMES-ONLY"), |_| {
+                MediaPlaylistTag::IFramesOnly
+            })
+            | map!(start_tag, MediaPlaylistTag::Start)
+            | map!(tag!("#EXT-X-INDEPENDENT-SEGMENTS"), |_| {
+                MediaPlaylistTag::IndependentSegments
+            })
+            | map!(tag!("#EXT-X-ENDLIST"), |_| MediaPlaylistTag::EndList)
+            | map!(media_segment_tag, MediaPlaylistTag::Segment)
     )
 }
 
@@ -420,7 +449,6 @@ pub fn media_playlist_from_tags(mut tags: Vec<MediaPlaylistTag>) -> MediaPlaylis
     let mut map = None;
 
     while let Some(tag) = tags.pop() {
-
         match tag {
             MediaPlaylistTag::Version(v) => {
                 media_playlist.version = v;
@@ -449,45 +477,43 @@ pub fn media_playlist_from_tags(mut tags: Vec<MediaPlaylistTag>) -> MediaPlaylis
             MediaPlaylistTag::IndependentSegments => {
                 media_playlist.independent_segments = true;
             }
-            MediaPlaylistTag::Segment(segment_tag) => {
-                match segment_tag {
-                    SegmentTag::Extinf(d, t) => {
-                        next_segment.duration = d;
-                        next_segment.title = t;
-                    }
-                    SegmentTag::ByteRange(b) => {
-                        next_segment.byte_range = Some(b);
-                    }
-                    SegmentTag::Discontinuity => {
-                        next_segment.discontinuity = true;
-                    }
-                    SegmentTag::Key(k) => {
-                        encryption_key = Some(k);
-                    }
-                    SegmentTag::Map(m) => {
-                        map = Some(m);
-                    }
-                    SegmentTag::ProgramDateTime(d) => {
-                        next_segment.program_date_time = Some(d);
-                    }
-                    SegmentTag::DateRange(d) => {
-                        next_segment.daterange = Some(d);
-                    }
-                    SegmentTag::Unknown(t) => {
-                        media_playlist.unknown_tags.push(t);
-                    }
-                    SegmentTag::Uri(u) => {
-                        next_segment.key = encryption_key.clone();
-                        next_segment.map = map.clone();
-                        next_segment.uri = u;
-                        media_playlist.segments.push(next_segment);
-                        next_segment = MediaSegment::empty();
-                        encryption_key = None;
-                        map = None;
-                    }
-                    _ => (),
+            MediaPlaylistTag::Segment(segment_tag) => match segment_tag {
+                SegmentTag::Extinf(d, t) => {
+                    next_segment.duration = d;
+                    next_segment.title = t;
                 }
-            }
+                SegmentTag::ByteRange(b) => {
+                    next_segment.byte_range = Some(b);
+                }
+                SegmentTag::Discontinuity => {
+                    next_segment.discontinuity = true;
+                }
+                SegmentTag::Key(k) => {
+                    encryption_key = Some(k);
+                }
+                SegmentTag::Map(m) => {
+                    map = Some(m);
+                }
+                SegmentTag::ProgramDateTime(d) => {
+                    next_segment.program_date_time = Some(d);
+                }
+                SegmentTag::DateRange(d) => {
+                    next_segment.daterange = Some(d);
+                }
+                SegmentTag::Unknown(t) => {
+                    media_playlist.unknown_tags.push(t);
+                }
+                SegmentTag::Uri(u) => {
+                    next_segment.key = encryption_key.clone();
+                    next_segment.map = map.clone();
+                    next_segment.uri = u;
+                    media_playlist.segments.push(next_segment);
+                    next_segment = MediaSegment::empty();
+                    encryption_key = None;
+                    map = None;
+                }
+                _ => (),
+            },
             _ => (),
         }
     }
@@ -525,19 +551,34 @@ pub enum SegmentTag {
 }
 
 pub fn media_segment_tag(input: &[u8]) -> IResult<&[u8], SegmentTag> {
-    alt!(input,
-      map!(do_parse!(tag!("#EXTINF:") >> e:duration_title_tag >> (e)), |(a,b)| SegmentTag::Extinf(a,b))
-    | map!(do_parse!(tag!("#EXT-X-BYTERANGE:") >> r:byte_range_val >> (r)), SegmentTag::ByteRange)
-    | map!(tag!("#EXT-X-DISCONTINUITY"), |_| SegmentTag::Discontinuity)
-    | map!(do_parse!(tag!("#EXT-X-KEY:") >> k: key >> (k)), SegmentTag::Key)
-    | map!(do_parse!(tag!("#EXT-X-MAP:") >> m: extmap >> (m)), SegmentTag::Map)
-    | map!(do_parse!(tag!("#EXT-X-PROGRAM-DATE-TIME:") >> t:consume_line >> (t)), SegmentTag::ProgramDateTime)
-    | map!(do_parse!(tag!("#EXT-X-DATE-RANGE:") >> t:consume_line >> (t)), SegmentTag::DateRange)
-
-    | map!(ext_tag, SegmentTag::Unknown)
-    | map!(comment_tag, SegmentTag::Comment)
-
-    | map!(consume_line, SegmentTag::Uri)
+    alt!(
+        input,
+        map!(
+            do_parse!(tag!("#EXTINF:") >> e: duration_title_tag >> (e)),
+            |(a, b)| SegmentTag::Extinf(a, b)
+        ) | map!(
+            do_parse!(tag!("#EXT-X-BYTERANGE:") >> r: byte_range_val >> (r)),
+            SegmentTag::ByteRange
+        ) | map!(tag!("#EXT-X-DISCONTINUITY"), |_| SegmentTag::Discontinuity)
+            | map!(
+                do_parse!(tag!("#EXT-X-KEY:") >> k: key >> (k)),
+                SegmentTag::Key
+            )
+            | map!(
+                do_parse!(tag!("#EXT-X-MAP:") >> m: extmap >> (m)),
+                SegmentTag::Map
+            )
+            | map!(
+                do_parse!(tag!("#EXT-X-PROGRAM-DATE-TIME:") >> t: consume_line >> (t)),
+                SegmentTag::ProgramDateTime
+            )
+            | map!(
+                do_parse!(tag!("#EXT-X-DATE-RANGE:") >> t: consume_line >> (t)),
+                SegmentTag::DateRange
+            )
+            | map!(ext_tag, SegmentTag::Unknown)
+            | map!(comment_tag, SegmentTag::Comment)
+            | map!(consume_line, SegmentTag::Uri)
     )
 }
 
@@ -556,7 +597,7 @@ named!(pub duration_title_tag<(f32, Option<String>)>,
 named!(pub key<Key>, map!(key_value_pairs, Key::from_hashmap));
 
 named!(pub extmap<Map>, map!(key_value_pairs, |attrs| Map {
-    uri: attrs.get("URI").map(|u| u.clone()).unwrap_or_default(),
+    uri: attrs.get("URI").cloned().unwrap_or_default(),
     byte_range: attrs.get("BYTERANGE").map(|range| {
         match byte_range_val(range.as_bytes()) {
             IResult::Ok((_, br)) => br,
@@ -594,7 +635,7 @@ named!(pub ext_tag<ExtTag>,
         >> rest: map_res!(is_not!("\r\n"), from_utf8_slice)
         >> take!(1)
         >>
-        (ExtTag { tag: tag, rest: rest })
+        (ExtTag { tag, rest })
     )
 );
 
