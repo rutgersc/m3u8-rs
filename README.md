@@ -1,4 +1,6 @@
-# m3u8-rs
+# m3u8-rs   
+![crates.io](https://img.shields.io/crates/v/m3u8-rs.svg)
+
 A Rust library for parsing m3u8 playlists (HTTP Live Streaming) [link](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19).
 Uses the [`nom` library](https://github.com/Geal/nom) for all of the parsing.
 
