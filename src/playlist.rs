@@ -3,32 +3,40 @@
 //! The main type here is the `Playlist` enum.
 //! Which is either a `MasterPlaylist` or a `MediaPlaylist`.
 
-use std::io::Write;
 use std::collections::HashMap;
-use std::str::FromStr;
-use std::fmt;
 use std::f32;
+use std::fmt;
 use std::fmt::Display;
+use std::io::Write;
+use std::str::FromStr;
 
 macro_rules! write_some_attribute_quoted {
-    ($w:expr, $tag:expr, $o:expr) => (
-        if let &Some(ref v) = $o { write!($w, "{}=\"{}\"", $tag, v)  } else { Ok(()) }
-    );
+    ($w:expr, $tag:expr, $o:expr) => {
+        if let &Some(ref v) = $o {
+            write!($w, "{}=\"{}\"", $tag, v)
+        } else {
+            Ok(())
+        }
+    };
 }
 
 macro_rules! write_some_attribute {
-    ($w:expr, $tag:expr, $o:expr) => (
-        if let &Some(ref v) = $o { write!($w, "{}={}", $tag, v) } else { Ok(()) }
-    );
+    ($w:expr, $tag:expr, $o:expr) => {
+        if let &Some(ref v) = $o {
+            write!($w, "{}={}", $tag, v)
+        } else {
+            Ok(())
+        }
+    };
 }
 
 macro_rules! bool_default_false {
-    ($optional:expr) => (
+    ($optional:expr) => {
         match $optional {
             Some(ref s) if s == "YES" => true,
             Some(_) | None => false,
         }
-    );
+    };
 }
 
 /// [Playlist](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.1),
@@ -46,9 +54,9 @@ pub enum Playlist {
 
 impl Playlist {
     pub fn write_to<T: Write>(&self, writer: &mut T) -> std::io::Result<()> {
-        match self {
-            &Playlist::MasterPlaylist(ref pl) => pl.write_to(writer),
-            &Playlist::MediaPlaylist(ref pl) => pl.write_to(writer),
+        match *self {
+            Playlist::MasterPlaylist(ref pl) => pl.write_to(writer),
+            Playlist::MediaPlaylist(ref pl) => pl.write_to(writer),
         }
     }
 }
@@ -74,14 +82,12 @@ pub struct MasterPlaylist {
 }
 
 impl MasterPlaylist {
-
     pub fn get_newest_variant(&mut self) -> Option<&mut VariantStream> {
         self.variants.iter_mut().rev().find(|v| !v.is_i_frame)
     }
 
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
-        writeln!(w, "{}" ,"#EXTM3U")?;
-        writeln!(w, "#EXT-X-VERSION:{}", self.version)?;
+        writeln!(w, "#EXTM3U\n#EXT-X-VERSION:{}", self.version)?;
 
         for alternative in &self.alternatives {
             alternative.write_to(w)?;
@@ -147,10 +153,9 @@ pub struct VariantStream {
 }
 
 impl VariantStream {
-
     pub fn from_hashmap(mut attrs: HashMap<String, String>, is_i_frame: bool) -> VariantStream {
         VariantStream {
-            is_i_frame: is_i_frame,
+            is_i_frame,
             uri: attrs.remove("URI").unwrap_or_else(String::new),
             bandwidth: attrs.remove("BANDWIDTH").unwrap_or_else(String::new),
             average_bandwidth: attrs.remove("AVERAGE-BANDWIDTH"),
@@ -166,20 +171,17 @@ impl VariantStream {
     }
 
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
-
-
         if self.is_i_frame {
             write!(w, "#EXT-X-I-FRAME-STREAM-INF:")?;
             self.write_stream_inf_common_attributes(w)?;
             writeln!(w, ",URI=\"{}\"", self.uri)
-        }
-        else {
+        } else {
             write!(w, "#EXT-X-STREAM-INF:")?;
             self.write_stream_inf_common_attributes(w)?;
             write_some_attribute_quoted!(w, ",AUDIO", &self.audio)?;
             write_some_attribute_quoted!(w, ",SUBTITLES", &self.subtitles)?;
             write_some_attribute_quoted!(w, ",CLOSED-CAPTIONS", &self.closed_captions)?;
-            write!(w, "\n")?;
+            writeln!(w)?;
             writeln!(w, "{}", self.uri)
         }
     }
@@ -222,17 +224,17 @@ pub struct AlternativeMedia {
 }
 
 impl AlternativeMedia {
-
     pub fn from_hashmap(mut attrs: HashMap<String, String>) -> AlternativeMedia {
         AlternativeMedia {
-            media_type: attrs.get("TYPE")
+            media_type: attrs
+                .get("TYPE")
                 .and_then(|s| AlternativeMediaType::from_str(s).ok())
                 .unwrap_or_else(Default::default),
             uri: attrs.remove("URI"),
             group_id: attrs.remove("GROUP-ID").unwrap_or_else(String::new),
             language: attrs.remove("LANGUAGE"),
             assoc_language: attrs.remove("ASSOC-LANGUAGE"),
-            name: attrs.remove("NAME").unwrap_or(String::new()),
+            name: attrs.remove("NAME").unwrap_or_default(),
             default: bool_default_false!(attrs.remove("DEFAULT")),
             autoselect: bool_default_false!(attrs.remove("AUTOSELECT")),
             forced: bool_default_false!(attrs.remove("FORCED")),
@@ -250,13 +252,19 @@ impl AlternativeMedia {
         write_some_attribute_quoted!(w, ",LANGUAGE", &self.language)?;
         write_some_attribute_quoted!(w, ",ASSOC-LANGUAGE", &self.assoc_language)?;
         write!(w, ",NAME=\"{}\"", self.name)?;
-        if self.default { write!(w, ",DEFAULT=YES")?; }
-        if self.autoselect { write!(w, ",AUTOSELECT=YES")?; }
-        if self.forced { write!(w, ",FORCED=YES")?; }
+        if self.default {
+            write!(w, ",DEFAULT=YES")?;
+        }
+        if self.autoselect {
+            write!(w, ",AUTOSELECT=YES")?;
+        }
+        if self.forced {
+            write!(w, ",FORCED=YES")?;
+        }
         write_some_attribute_quoted!(w, ",INSTREAM-ID", &self.instream_id)?;
         write_some_attribute_quoted!(w, ",CHARACTERISTICS", &self.characteristics)?;
         write_some_attribute_quoted!(w, ",CHANNELS", &self.channels)?;
-        write!(w, "\n")
+        writeln!(w)
     }
 }
 
@@ -277,7 +285,10 @@ impl FromStr for AlternativeMediaType {
             "VIDEO" => Ok(AlternativeMediaType::Video),
             "SUBTITLES" => Ok(AlternativeMediaType::Subtitles),
             "CLOSEDCAPTIONS" => Ok(AlternativeMediaType::ClosedCaptions),
-            _ => Err(format!("Unable to create AlternativeMediaType from {:?}", s)),
+            _ => Err(format!(
+                "Unable to create AlternativeMediaType from {:?}",
+                s
+            )),
         }
     }
 }
@@ -290,15 +301,18 @@ impl Default for AlternativeMediaType {
 
 impl fmt::Display for AlternativeMediaType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match self {
-            &AlternativeMediaType::Audio => "AUDIO",
-            &AlternativeMediaType::Video => "VIDEO",
-            &AlternativeMediaType::Subtitles => "SUBTITLES",
-            &AlternativeMediaType::ClosedCaptions => "CLOSEDCAPTIONS",
-        })
+        write!(
+            f,
+            "{}",
+            match *self {
+                AlternativeMediaType::Audio => "AUDIO",
+                AlternativeMediaType::Video => "VIDEO",
+                AlternativeMediaType::Subtitles => "SUBTITLES",
+                AlternativeMediaType::ClosedCaptions => "CLOSEDCAPTIONS",
+            }
+        )
     }
 }
-
 
 /// [`#EXT-X-SESSION-KEY:<attribute-list>`]
 /// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.5)
@@ -312,14 +326,14 @@ impl SessionKey {
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         write!(w, "#EXT-X-SESSION-KEY:")?;
         self.0.write_attributes_to(w)?;
-        write!(w, "\n")
+        writeln!(w)
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum SessionDataField {
     Value(String),
-    Uri(String)
+    Uri(String),
 }
 
 /// [`#EXT-X-SESSION-DATA:<attribute-list>`]
@@ -337,7 +351,7 @@ impl SessionData {
     pub fn from_hashmap(mut attrs: HashMap<String, String>) -> Result<SessionData, String> {
         let data_id = match attrs.remove("DATA-ID") {
             Some(data_id) => data_id,
-            None => return Err("EXT-X-SESSION-DATA field without DATA-ID".to_string())
+            None => return Err("EXT-X-SESSION-DATA field without DATA-ID".to_string()),
         };
 
         let value = attrs.remove("VALUE");
@@ -348,8 +362,18 @@ impl SessionData {
         let field = match (value, uri) {
             (Some(value), None) => SessionDataField::Value(value),
             (None, Some(uri)) => SessionDataField::Uri(uri),
-            (Some(_), Some(_)) => return Err(format!["EXT-X-SESSION-DATA tag {} contains both a value and a uri", data_id]),
-            (None, None) => return Err(format!["EXT-X-SESSION-DATA tag {} must contain either a value or a uri", data_id]),
+            (Some(_), Some(_)) => {
+                return Err(format![
+                    "EXT-X-SESSION-DATA tag {} contains both a value and a uri",
+                    data_id
+                ])
+            }
+            (None, None) => {
+                return Err(format![
+                    "EXT-X-SESSION-DATA tag {} must contain either a value or a uri",
+                    data_id
+                ])
+            }
         };
 
         Ok(SessionData {
@@ -363,11 +387,11 @@ impl SessionData {
         write!(w, "#EXT-X-SESSION-DATA:")?;
         write!(w, "DATA-ID=\"{}\"", self.data_id)?;
         match &self.field {
-          SessionDataField::Value(value) => write!(w, ",VALUE=\"{}\"", value)?,
-          SessionDataField::Uri(uri) => write!(w, ",URI=\"{}\"", uri)?,
+            SessionDataField::Value(value) => write!(w, ",VALUE=\"{}\"", value)?,
+            SessionDataField::Uri(uri) => write!(w, ",URI=\"{}\"", uri)?,
         };
         write_some_attribute_quoted!(w, ",LANGUAGE", &self.language)?;
-        write!(w, "\n")
+        writeln!(w)
     }
 }
 
@@ -402,17 +426,19 @@ pub struct MediaPlaylist {
 }
 
 impl MediaPlaylist {
-
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
-        writeln!(w, "{}" ,"#EXTM3U")?;
-        writeln!(w, "#EXT-X-VERSION:{}", self.version)?;
+        writeln!(w, "#EXTM3U\n#EXT-X-VERSION:{}", self.version)?;
         writeln!(w, "#EXT-X-TARGETDURATION:{}", self.target_duration)?;
 
         if self.media_sequence != 0 {
             writeln!(w, "#EXT-X-MEDIA-SEQUENCE:{}", self.media_sequence)?;
         }
         if self.discontinuity_sequence != 0 {
-            writeln!(w, "#EXT-X-DISCONTINUITY-SEQUENCE:{}", self.discontinuity_sequence)?;
+            writeln!(
+                w,
+                "#EXT-X-DISCONTINUITY-SEQUENCE:{}",
+                self.discontinuity_sequence
+            )?;
         }
         if self.end_list {
             writeln!(w, "#EXT-X-ENDLIST")?;
@@ -459,10 +485,14 @@ impl FromStr for MediaPlaylistType {
 
 impl fmt::Display for MediaPlaylistType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match self {
-            &MediaPlaylistType::Event => "EVENT",
-            &MediaPlaylistType::Vod => "VOD",
-        })
+        write!(
+            f,
+            "{}",
+            match *self {
+                MediaPlaylistType::Event => "EVENT",
+                MediaPlaylistType::Vod => "VOD",
+            }
+        )
     }
 }
 
@@ -507,24 +537,23 @@ impl MediaSegment {
     }
 
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
-
         if let Some(ref byte_range) = self.byte_range {
             write!(w, "#EXT-X-BYTERANGE:")?;
             byte_range.write_value_to(w)?;
-            write!(w, "\n")?;
+            writeln!(w)?;
         }
         if self.discontinuity {
-            writeln!(w, "{}", "#EXT-X-DISCONTINUITY")?;
+            writeln!(w, "#EXT-X-DISCONTINUITY")?;
         }
         if let Some(ref key) = self.key {
             write!(w, "#EXT-X-KEY:")?;
             key.write_attributes_to(w)?;
-            write!(w, "\n")?;
+            writeln!(w)?;
         }
         if let Some(ref map) = self.map {
             write!(w, "#EXT-X-MAP:")?;
             map.write_attributes_to(w)?;
-            write!(w, "\n")?;
+            writeln!(w)?;
         }
         if let Some(ref v) = self.program_date_time {
             writeln!(w, "#EXT-X-PROGRAM-DATE-TIME:{}", v)?;
@@ -541,7 +570,7 @@ impl MediaSegment {
         if let Some(ref v) = self.title {
             writeln!(w, "{}", v)?;
         } else {
-            write!(w, "\n")?;
+            writeln!(w)?;
         }
 
         writeln!(w, "{}", self.uri)
@@ -613,7 +642,6 @@ impl Map {
     }
 }
 
-
 /// [`#EXT-X-BYTERANGE:<n>[@<o>]`]
 /// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.2.2)
 ///
@@ -635,7 +663,6 @@ impl ByteRange {
         Ok(())
     }
 }
-
 
 /// [`#EXT-X-DATERANGE:<attribute-list>`]
 /// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.2.7)
@@ -675,14 +702,14 @@ impl Start {
     pub fn from_hashmap(mut attrs: HashMap<String, String>) -> Start {
         Start {
             time_offset: attrs.remove("TIME-OFFSET").unwrap_or_else(String::new),
-            precise: attrs.remove("PRECISE").or(Some("NO".to_string())),
+            precise: attrs.remove("PRECISE").or_else(|| Some("NO".to_string())),
         }
     }
 
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         write!(w, "#EXT-X-START:TIME-OFFSET={}", self.time_offset)?;
         write_some_attribute!(w, ",PRECISE", &self.precise)?;
-        write!(w, "\n")
+        writeln!(w)
     }
 }
 
@@ -717,7 +744,10 @@ mod test {
         let mut output = Vec::new();
         write!(output, "{}", cue_out_tag).unwrap();
 
-        assert_eq!(std::str::from_utf8(output.as_slice()).unwrap(), "#EXT-X-CUE-OUT:DURATION=30")
+        assert_eq!(
+            std::str::from_utf8(output.as_slice()).unwrap(),
+            "#EXT-X-CUE-OUT:DURATION=30"
+        )
     }
 
     #[test]
@@ -730,6 +760,9 @@ mod test {
         let mut output = Vec::new();
         write!(output, "{}", cue_in_tag).unwrap();
 
-        assert_eq!(std::str::from_utf8(output.as_slice()).unwrap(), "#EXT-X-CUE-IN")
+        assert_eq!(
+            std::str::from_utf8(output.as_slice()).unwrap(),
+            "#EXT-X-CUE-IN"
+        )
     }
 }

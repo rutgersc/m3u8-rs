@@ -1,7 +1,7 @@
-extern crate nom;
 extern crate m3u8_rs;
+extern crate nom;
 
-use m3u8_rs::playlist::{Playlist};
+use m3u8_rs::playlist::Playlist;
 use std::io::Read;
 
 fn main() {
@@ -14,6 +14,6 @@ fn main() {
     match parsed {
         Ok(Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{:?}", pl),
         Ok(Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{:?}", pl),
-        Err(e) => println!("Error: {:?}", e)
+        Err(e) => println!("Error: {:?}", e),
     }
 }
