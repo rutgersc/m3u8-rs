@@ -1,6 +1,6 @@
 [package]
 name = "m3u8-rs"
-version = "2.0.0"
+version = "2.1.0"
 authors = ["Rutger"]
 readme = "README.md"
 repository = "https://github.com/rutgersc/m3u8-rs"
