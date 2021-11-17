@@ -1,7 +1,5 @@
-#[path = "playlist.rs"]
 pub mod playlist;
 
-#[path = "parser.rs"]
 #[cfg(feature = "parser")]
 mod parser;
 

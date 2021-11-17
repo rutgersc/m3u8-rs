@@ -74,8 +74,6 @@
 //!
 //! ```
 
-pub mod playlist;
-
 use nom::branch::alt;
 use nom::bytes::complete::{is_a, is_not, tag, take, take_until, take_while1};
 use nom::character::complete::{
