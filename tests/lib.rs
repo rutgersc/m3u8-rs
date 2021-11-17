@@ -501,3 +501,29 @@ fn parsing_write_to_should_produce_the_same_structure() {
         );
     }
 }
+
+// Failure on arbitrary text files that don't start with #EXTM3U8
+
+#[test]
+fn parsing_text_file_should_fail() {
+    let s = "
+Lorem ipsum dolor sit amet, consectetur adipiscing elit,
+sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris
+nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in
+reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia
+deserunt mollit anim id est laborum.
+    ";
+    let res = parse_master_playlist_res(s.as_bytes());
+
+    assert!(res.is_err());
+}
+
+#[test]
+fn parsing_binary_data_should_fail_cleanly() {
+    let data = (0..1024).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
+    let res = parse_master_playlist_res(&data);
+
+    assert!(res.is_err());
+}
