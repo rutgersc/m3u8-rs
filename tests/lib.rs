@@ -5,7 +5,7 @@ extern crate nom;
 
 use m3u8_rs::playlist::*;
 use m3u8_rs::*;
-use nom::*;
+use nom::AsBytes;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
