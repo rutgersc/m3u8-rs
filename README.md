@@ -12,12 +12,6 @@ To use this library, add the following dependency to `Cargo.toml`:
 m3u8-rs = "1.0.6"
 ```
 
-And add the crate to `lib.rs`
-
-```rust
-extern crate m3u8_rs;
-```
-
 Also available on [crates.io](https://crates.io/crates/m3u8-rs)
 
 # Documentation

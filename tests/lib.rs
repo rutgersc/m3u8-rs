@@ -1,8 +1,5 @@
 #![allow(unused_variables, unused_imports, dead_code)]
 
-extern crate m3u8_rs;
-extern crate nom;
-
 use m3u8_rs::playlist::*;
 use m3u8_rs::*;
 use nom::AsBytes;

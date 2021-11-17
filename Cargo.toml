@@ -7,6 +7,7 @@ repository = "https://github.com/rutgersc/m3u8-rs"
 description = "A library for parsing m3u8 files (Apple's HTTP Live Streaming (HLS) protocol)."
 documentation = "https://rutgersc.github.io/doc/m3u8_rs/index.html"
 license = "MIT"
+edition = "2018"
 
 [dependencies]
 nom = { version = "7", optional = true }

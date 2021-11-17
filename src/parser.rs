@@ -6,8 +6,6 @@
 //! Parsing a playlist and let the parser figure out if it's a media or master playlist.
 //!
 //! ```
-//! extern crate nom;
-//! extern crate m3u8_rs;
 //! use m3u8_rs::playlist::Playlist;
 //! use nom::IResult;
 //! use std::io::Read;
@@ -28,8 +26,6 @@
 //! Parsing a master playlist directly
 //!
 //! ```
-//! extern crate nom;
-//! extern crate m3u8_rs;
 //! use std::io::Read;
 //! use nom::IResult;
 //!
@@ -48,7 +44,6 @@
 //! Creating a playlist and writing it back to a vec/file
 //!
 //! ```
-//! extern crate m3u8_rs;
 //! use m3u8_rs::playlist::{MediaPlaylist, MediaPlaylistType, MediaSegment};
 //!
 //! fn main() {
@@ -79,20 +74,18 @@
 //!
 //! ```
 
-extern crate nom;
-
 pub mod playlist;
 
-use self::nom::bytes::complete::{tag, take, is_not, is_a, take_while1, take_until};
-use self::nom::character::is_digit;
-use self::nom::character::complete::{digit1, multispace0, space0, line_ending, not_line_ending, char, none_of};
-use self::nom::sequence::{delimited, preceded, tuple, pair, terminated};
-use self::nom::combinator::{map, map_res, opt, peek, eof, complete};
-use self::nom::multi::{fold_many0, many0};
-use self::nom::branch::alt;
+use nom::bytes::complete::{tag, take, is_not, is_a, take_while1, take_until};
+use nom::character::is_digit;
+use nom::character::complete::{digit1, multispace0, space0, line_ending, not_line_ending, char, none_of};
+use nom::sequence::{delimited, preceded, tuple, pair, terminated};
+use nom::combinator::{map, map_res, opt, peek, eof, complete};
+use nom::multi::{fold_many0, many0};
+use nom::branch::alt;
 
-use self::nom::IResult;
-use playlist::*;
+use nom::IResult;
+use crate::playlist::*;
 use std::collections::HashMap;
 use std::f32;
 use std::result::Result;
