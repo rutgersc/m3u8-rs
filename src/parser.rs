@@ -157,7 +157,13 @@ pub fn parse_playlist_res(input: &[u8]) -> Result<Playlist, IResult<&[u8], Playl
 
 /// Parse input as a master playlist
 pub fn parse_master_playlist(input: &[u8]) -> IResult<&[u8], MasterPlaylist> {
-    map(parse_master_playlist_tags, master_playlist_from_tags)(input)
+    map(
+        pair(
+            complete(pair(m3u_tag, multispace0)),
+            parse_master_playlist_tags,
+        ),
+        |(_, tags)| master_playlist_from_tags(tags),
+    )(input)
 }
 
 /// Parse input as a master playlist
@@ -173,7 +179,13 @@ pub fn parse_master_playlist_res(
 
 /// Parse input as a media playlist
 pub fn parse_media_playlist(input: &[u8]) -> IResult<&[u8], MediaPlaylist> {
-    map(parse_media_playlist_tags, media_playlist_from_tags)(input)
+    map(
+        pair(
+            complete(pair(m3u_tag, multispace0)),
+            parse_media_playlist_tags,
+        ),
+        |(_, tags)| media_playlist_from_tags(tags),
+    )(input)
 }
 
 /// Parse input as a media playlist
@@ -271,7 +283,6 @@ pub fn parse_master_playlist_tags(i: &[u8]) -> IResult<&[u8], Vec<MasterPlaylist
 /// Contains all the tags required to parse a master playlist.
 #[derive(Debug)]
 pub enum MasterPlaylistTag {
-    M3U(String),
     Version(usize),
     VariantStream(VariantStream),
     AlternativeMedia(AlternativeMedia),
@@ -289,7 +300,6 @@ pub fn master_playlist_tag(i: &[u8]) -> IResult<&[u8], MasterPlaylistTag> {
     peek(take(1usize))(i)?;
 
     alt((
-        map(m3u_tag, MasterPlaylistTag::M3U),
         map(version_tag, MasterPlaylistTag::Version),
         map(variant_stream_tag, MasterPlaylistTag::VariantStream),
         map(variant_i_frame_stream_tag, MasterPlaylistTag::VariantStream),
@@ -404,7 +414,6 @@ pub fn parse_media_playlist_tags(i: &[u8]) -> IResult<&[u8], Vec<MediaPlaylistTa
 /// Contains all the tags required to parse a media playlist.
 #[derive(Debug)]
 pub enum MediaPlaylistTag {
-    M3U(String),
     Version(usize),
     Segment(SegmentTag),
     TargetDuration(f32),
@@ -423,7 +432,6 @@ pub fn media_playlist_tag(i: &[u8]) -> IResult<&[u8], MediaPlaylistTag> {
     peek(take(1usize))(i)?;
 
     alt((
-        map(m3u_tag, MediaPlaylistTag::M3U),
         map(version_tag, MediaPlaylistTag::Version),
         map(
             pair(tag("#EXT-X-TARGETDURATION:"), float),
@@ -624,8 +632,8 @@ pub fn extmap(i: &[u8]) -> IResult<&[u8], Map> {
 // Basic tags
 // -----------------------------------------------------------------------------------------------
 
-pub fn m3u_tag(i: &[u8]) -> IResult<&[u8], String> {
-    map_res(tag("#EXTM3U"), from_utf8_slice)(i)
+pub fn m3u_tag(i: &[u8]) -> IResult<&[u8], ()> {
+    map(tag("#EXTM3U"), |_| ())(i)
 }
 
 pub fn version_tag(i: &[u8]) -> IResult<&[u8], usize> {
