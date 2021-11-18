@@ -1,4 +1,5 @@
-pub mod playlist;
+mod playlist;
+pub use playlist::*;
 
 #[cfg(feature = "parser")]
 mod parser;
