@@ -10,16 +10,14 @@
 //! use nom::IResult;
 //! use std::io::Read;
 //!
-//! fn main() {
-//!     let mut file = std::fs::File::open("playlist.m3u8").unwrap();
-//!     let mut bytes: Vec<u8> = Vec::new();
-//!     file.read_to_end(&mut bytes).unwrap();
+//! let mut file = std::fs::File::open("playlist.m3u8").unwrap();
+//! let mut bytes: Vec<u8> = Vec::new();
+//! file.read_to_end(&mut bytes).unwrap();
 //!
-//!     match m3u8_rs::parse_playlist(&bytes) {
-//!         Result::Ok((i, Playlist::MasterPlaylist(pl))) => println!("Master playlist:\n{:?}", pl),
-//!         Result::Ok((i, Playlist::MediaPlaylist(pl))) => println!("Media playlist:\n{:?}", pl),
-//!         Result::Err(e) =>  panic!("Parsing error: \n{}", e),
-//!     }
+//! match m3u8_rs::parse_playlist(&bytes) {
+//!     Result::Ok((i, Playlist::MasterPlaylist(pl))) => println!("Master playlist:\n{:?}", pl),
+//!     Result::Ok((i, Playlist::MediaPlaylist(pl))) => println!("Media playlist:\n{:?}", pl),
+//!     Result::Err(e) =>  panic!("Parsing error: \n{}", e),
 //! }
 //! ```
 //!
@@ -29,16 +27,13 @@
 //! use std::io::Read;
 //! use nom::IResult;
 //!
-//! fn main() {
-//!     let mut file = std::fs::File::open("masterplaylist.m3u8").unwrap();
-//!     let mut bytes: Vec<u8> = Vec::new();
-//!     file.read_to_end(&mut bytes).unwrap();
+//! let mut file = std::fs::File::open("masterplaylist.m3u8").unwrap();
+//! let mut bytes: Vec<u8> = Vec::new();
+//! file.read_to_end(&mut bytes).unwrap();
 //!
-//!     if let Result::Ok((_, pl)) = m3u8_rs::parse_master_playlist(&bytes) {
-//!         println!("{:?}", pl);
-//!     }
+//! if let Result::Ok((_, pl)) = m3u8_rs::parse_master_playlist(&bytes) {
+//!     println!("{:?}", pl);
 //! }
-//!
 //! ```
 //!
 //! Creating a playlist and writing it back to a vec/file
@@ -46,32 +41,29 @@
 //! ```
 //! use m3u8_rs::playlist::{MediaPlaylist, MediaPlaylistType, MediaSegment};
 //!
-//! fn main() {
-//!     let playlist = MediaPlaylist {
-//!         version: 6,
-//!         target_duration: 3.0,
-//!         media_sequence: 338559,
-//!         discontinuity_sequence: 1234,
-//!         end_list: true,
-//!         playlist_type: Some(MediaPlaylistType::Vod),
-//!         segments: vec![
-//!             MediaSegment {
-//!                 uri: "20140311T113819-01-338559live.ts".into(),
-//!                 duration: 2.002,
-//!                 title: Some("title".into()),
-//!                 ..Default::default()
-//!             },
-//!         ],
-//!         ..Default::default()
-//!     };
+//! let playlist = MediaPlaylist {
+//!     version: 6,
+//!     target_duration: 3.0,
+//!     media_sequence: 338559,
+//!     discontinuity_sequence: 1234,
+//!     end_list: true,
+//!     playlist_type: Some(MediaPlaylistType::Vod),
+//!     segments: vec![
+//!         MediaSegment {
+//!             uri: "20140311T113819-01-338559live.ts".into(),
+//!             duration: 2.002,
+//!             title: Some("title".into()),
+//!             ..Default::default()
+//!         },
+//!     ],
+//!     ..Default::default()
+//! };
 //!
-//!     //let mut v: Vec<u8> = Vec::new();
-//!     //playlist.write_to(&mut v).unwrap();
+//! //let mut v: Vec<u8> = Vec::new();
+//! //playlist.write_to(&mut v).unwrap();
 //!
-//!     //let mut file = std::fs::File::open("playlist.m3u8").unwrap();
-//!     //playlist.write_to(&mut file).unwrap();
-//! }
-//!
+//! //let mut file = std::fs::File::open("playlist.m3u8").unwrap();
+//! //playlist.write_to(&mut file).unwrap();
 //! ```
 
 use nom::branch::alt;
