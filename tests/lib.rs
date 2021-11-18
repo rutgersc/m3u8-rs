@@ -1,11 +1,7 @@
 #![allow(unused_variables, unused_imports, dead_code)]
 
-extern crate m3u8_rs;
-extern crate nom;
-
-use m3u8_rs::playlist::*;
 use m3u8_rs::*;
-use nom::*;
+use nom::AsBytes;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
@@ -24,7 +20,7 @@ fn all_sample_m3u_playlists() -> Vec<path::PathBuf> {
 
 fn getm3u(path: &str) -> String {
     let mut buf = String::new();
-    let mut file = fs::File::open(path).expect(&format!("Can't find m3u8: {}", path));
+    let mut file = fs::File::open(path).unwrap_or_else(|_| panic!("Can't find m3u8: {}", path));
     let u = file.read_to_string(&mut buf).expect("Can't read file");
     buf
 }
@@ -142,7 +138,7 @@ fn playlist_not_ending_in_newline_media() {
 fn playlist_type_is_master() {
     let input = get_sample_playlist("master.m3u8");
     let result = is_master_playlist(input.as_bytes());
-    assert_eq!(true, result);
+    assert!(result);
 }
 
 // #[test]
@@ -164,158 +160,6 @@ fn playlist_types() {
 
         assert!(path.to_lowercase().contains("master") == is_master);
     }
-}
-
-// -----------------------------------------------------------------------------------------------
-// Variant
-
-#[test]
-fn variant_stream() {
-    let input = b"#EXT-X-STREAM-INF:BANDWIDTH=300000,CODECS=\"xxx\"\n";
-    let result = variant_stream_tag(input);
-    println!("{:?}", result);
-}
-
-// -----------------------------------------------------------------------------------------------
-// Other
-
-#[test]
-fn test_key_value_pairs_trailing_equals() {
-    let res = key_value_pairs(b"BANDWIDTH=395000,CODECS=\"avc1.4d001f,mp4a.40.2\"\r\nrest=");
-    println!("{:?}\n\n", res);
-}
-
-#[test]
-fn test_key_value_pairs_multiple_quoted_values() {
-    assert_eq!(
-        key_value_pairs(b"BANDWIDTH=86000,URI=\"low/iframe.m3u8\",PROGRAM-ID=1,RESOLUTION=\"1x1\",VIDEO=1\nrest"),
-        Result::Ok((
-            "\nrest".as_bytes(),
-            vec![
-                ("BANDWIDTH".to_string(), "86000".to_string()),
-                ("URI".to_string(), "low/iframe.m3u8".to_string()),
-                ("PROGRAM-ID".to_string(), "1".to_string()),
-                ("RESOLUTION".to_string(), "1x1".to_string()),
-                ("VIDEO".to_string(), "1".to_string())
-            ].into_iter().collect::<HashMap<String,String>>()
-        ))
-    );
-}
-
-#[test]
-fn test_key_value_pairs_quotes() {
-    let res = key_value_pairs(b"BANDWIDTH=300000,CODECS=\"avc1.42c015,mp4a.40.2\"\r\nrest");
-    println!("{:?}\n\n", res);
-}
-
-#[test]
-fn test_key_value_pairs() {
-    let res = key_value_pairs(b"BANDWIDTH=300000,RESOLUTION=22x22,VIDEO=1\r\nrest=");
-    println!("{:?}\n\n", res);
-}
-
-#[test]
-fn test_key_value_pair() {
-    assert_eq!(
-        key_value_pair(b"PROGRAM-ID=1,rest"),
-        Result::Ok((
-            "rest".as_bytes(),
-            ("PROGRAM-ID".to_string(), "1".to_string())
-        ))
-    );
-}
-
-#[test]
-fn ext_with_value() {
-    assert_eq!(
-        ext_tag(b"#EXT-X-CUE-OUT:DURATION=30\nxxx"),
-        Result::Ok((
-            b"xxx".as_bytes(),
-            ExtTag {
-                tag: "X-CUE-OUT".into(),
-                rest: Some("DURATION=30".into())
-            }
-        ))
-    );
-}
-
-#[test]
-fn ext_without_value() {
-    assert_eq!(
-        ext_tag(b"#EXT-X-CUE-IN\nxxx"),
-        Result::Ok((
-            b"xxx".as_bytes(),
-            ExtTag {
-                tag: "X-CUE-IN".into(),
-                rest: None
-            }
-        ))
-    );
-}
-
-#[test]
-fn comment() {
-    assert_eq!(
-        comment_tag(b"#Hello\nxxx"),
-        Result::Ok(("xxx".as_bytes(), "Hello".to_string()))
-    );
-}
-
-#[test]
-fn quotes() {
-    assert_eq!(
-        quoted(b"\"value\"rest"),
-        Result::Ok(("rest".as_bytes(), "value".to_string()))
-    );
-}
-
-#[test]
-fn consume_line_empty() {
-    let expected = Result::Ok(("rest".as_bytes(), "".to_string()));
-    let actual = consume_line(b"\r\nrest");
-    assert_eq!(expected, actual);
-}
-
-#[test]
-fn consume_line_n() {
-    assert_eq!(
-        consume_line(b"before\nrest"),
-        Result::Ok(("rest".as_bytes(), "before".into()))
-    );
-}
-
-#[test]
-fn consume_line_rn() {
-    assert_eq!(
-        consume_line(b"before\r\nrest"),
-        Result::Ok(("rest".as_bytes(), "before".into()))
-    );
-}
-
-#[test]
-fn float_() {
-    assert_eq!(
-        float(b"33.22rest"),
-        Result::Ok(("rest".as_bytes(), 33.22f32))
-    );
-}
-
-#[test]
-fn float_no_decimal() {
-    assert_eq!(float(b"33rest"), Result::Ok(("rest".as_bytes(), 33f32)));
-}
-
-#[test]
-fn float_should_ignore_trailing_dot() {
-    assert_eq!(float(b"33.rest"), Result::Ok((".rest".as_bytes(), 33f32)));
-}
-
-#[test]
-fn parse_duration_title() {
-    assert_eq!(
-        duration_title_tag(b"2.002,title\nrest"),
-        Result::Ok(("rest".as_bytes(), (2.002f32, Some("title".to_string()))))
-    );
 }
 
 // -----------------------------------------------------------------------------------------------
@@ -503,4 +347,30 @@ fn parsing_write_to_should_produce_the_same_structure() {
             input
         );
     }
+}
+
+// Failure on arbitrary text files that don't start with #EXTM3U8
+
+#[test]
+fn parsing_text_file_should_fail() {
+    let s = "
+Lorem ipsum dolor sit amet, consectetur adipiscing elit,
+sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris
+nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in
+reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia
+deserunt mollit anim id est laborum.
+    ";
+    let res = parse_master_playlist_res(s.as_bytes());
+
+    assert!(res.is_err());
+}
+
+#[test]
+fn parsing_binary_data_should_fail_cleanly() {
+    let data = (0..1024).map(|i| (i % 255) as u8).collect::<Vec<u8>>();
+    let res = parse_master_playlist_res(&data);
+
+    assert!(res.is_err());
 }

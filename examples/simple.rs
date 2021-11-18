@@ -1,7 +1,4 @@
-extern crate m3u8_rs;
-extern crate nom;
-
-use m3u8_rs::playlist::Playlist;
+use m3u8_rs::Playlist;
 use std::io::Read;
 
 fn main() {
