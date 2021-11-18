@@ -229,7 +229,7 @@ impl AlternativeMedia {
             media_type: attrs
                 .get("TYPE")
                 .and_then(|s| AlternativeMediaType::from_str(s).ok())
-                .unwrap_or_else(Default::default),
+                .unwrap_or_default(),
             uri: attrs.remove("URI"),
             group_id: attrs.remove("GROUP-ID").unwrap_or_else(String::new),
             language: attrs.remove("LANGUAGE"),
