@@ -271,6 +271,7 @@ fn parse_master_playlist_tags(i: &[u8]) -> IResult<&[u8], Vec<MasterPlaylistTag>
 }
 
 /// Contains all the tags required to parse a master playlist.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 enum MasterPlaylistTag {
     Version(usize),

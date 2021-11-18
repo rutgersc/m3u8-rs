@@ -21,7 +21,7 @@ fn all_sample_m3u_playlists() -> Vec<path::PathBuf> {
 
 fn getm3u(path: &str) -> String {
     let mut buf = String::new();
-    let mut file = fs::File::open(path).expect(&format!("Can't find m3u8: {}", path));
+    let mut file = fs::File::open(path).unwrap_or_else(|_| panic!("Can't find m3u8: {}", path));
     let u = file.read_to_string(&mut buf).expect("Can't read file");
     buf
 }
@@ -139,7 +139,7 @@ fn playlist_not_ending_in_newline_media() {
 fn playlist_type_is_master() {
     let input = get_sample_playlist("master.m3u8");
     let result = is_master_playlist(input.as_bytes());
-    assert_eq!(true, result);
+    assert!(result);
 }
 
 // #[test]
