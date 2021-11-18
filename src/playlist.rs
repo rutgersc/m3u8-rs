@@ -65,8 +65,7 @@ impl Playlist {
 // Master Playlist
 // -----------------------------------------------------------------------------------------------
 
-/// A [Master Playlist]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4)
+/// A [Master Playlist](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4)
 /// provides a set of Variant Streams, each of which
 /// describes a different version of the same content.
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -116,11 +115,8 @@ impl MasterPlaylist {
     }
 }
 
-/// [`#EXT-X-STREAM-INF:<attribute-list>
-///   <URI>`]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.2)
-/// [`#EXT-X-I-FRAME-STREAM-INF:<attribute-list>`]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.3)
+/// [`#EXT-X-STREAM-INF:<attribute-list> <URI>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.2)
+/// [`#EXT-X-I-FRAME-STREAM-INF:<attribute-list>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.3)
 ///
 /// A Variant Stream includes a Media Playlist that specifies media
 /// encoded at a particular bit rate, in a particular format, and at a
@@ -197,8 +193,7 @@ impl VariantStream {
     }
 }
 
-/// [`#EXT-X-MEDIA:<attribute-list>`]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.1)
+/// [`#EXT-X-MEDIA:<attribute-list>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.1)
 ///
 /// The EXT-X-MEDIA tag is used to relate Media Playlists that contain
 /// alternative Renditions (Section 4.3.4.2.1) of the same content.  For
@@ -314,8 +309,7 @@ impl fmt::Display for AlternativeMediaType {
     }
 }
 
-/// [`#EXT-X-SESSION-KEY:<attribute-list>`]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.5)
+/// [`#EXT-X-SESSION-KEY:<attribute-list>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.5)
 /// The EXT-X-SESSION-KEY tag allows encryption keys from Media Playlists
 /// to be specified in a Master Playlist.  This allows the client to
 /// preload these keys without having to read the Media Playlist(s) first.
@@ -336,8 +330,7 @@ pub enum SessionDataField {
     Uri(String),
 }
 
-/// [`#EXT-X-SESSION-DATA:<attribute-list>`]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.4)
+/// [`#EXT-X-SESSION-DATA:<attribute-list>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.4)
 /// The EXT-X-SESSION-DATA tag allows arbitrary session data to be carried
 /// in a Master Playlist.
 #[derive(Debug, PartialEq, Clone)]
@@ -399,8 +392,7 @@ impl SessionData {
 // Media Playlist
 // -----------------------------------------------------------------------------------------------
 
-/// A [Media Playlist]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.3)
+/// A [Media Playlist](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.3)
 /// contains a list of Media Segments, which when played
 /// sequentially will play the multimedia presentation.
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -463,8 +455,7 @@ impl MediaPlaylist {
     }
 }
 
-/// [`#EXT-X-PLAYLIST-TYPE:<EVENT|VOD>`]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.3.5)
+/// [`#EXT-X-PLAYLIST-TYPE:<EVENT|VOD>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.3.5)
 #[derive(Debug, PartialEq, Clone)]
 pub enum MediaPlaylistType {
     Event,
@@ -577,8 +568,7 @@ impl MediaSegment {
     }
 }
 
-/// [`#EXT-X-KEY:<attribute-list>`]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.2.4)
+/// [`#EXT-X-KEY:<attribute-list>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.2.4)
 ///
 /// Media Segments MAY be encrypted.  The EXT-X-KEY tag specifies how to
 /// decrypt them.  It applies to every Media Segment that appears between
@@ -615,12 +605,10 @@ impl Key {
     }
 }
 
-/// [`#EXT-X-MAP:<attribute-list>`]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.2.5)
+/// [`#EXT-X-MAP:<attribute-list>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.2.5)
 ///
 /// The EXT-X-MAP tag specifies how to obtain the Media Initialization Section
-/// [(Section 3)]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-3)
+/// [(Section 3)](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-3)
 /// required to parse the applicable Media Segments.
 /// It applies to every Media Segment that appears after it in the
 /// Playlist until the next EXT-X-MAP tag or until the end of the
@@ -642,8 +630,7 @@ impl Map {
     }
 }
 
-/// [`#EXT-X-BYTERANGE:<n>[@<o>]`]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.2.2)
+/// [`#EXT-X-BYTERANGE:<n>[@<o>]`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.2.2)
 ///
 /// The EXT-X-BYTERANGE tag indicates that a Media Segment is a sub-range
 /// of the resource identified by its URI.  It applies only to the next
@@ -664,8 +651,7 @@ impl ByteRange {
     }
 }
 
-/// [`#EXT-X-DATERANGE:<attribute-list>`]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.2.7)
+/// [`#EXT-X-DATERANGE:<attribute-list>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.2.7)
 ///
 /// The EXT-X-DATERANGE tag associates a Date Range (i.e. a range of time
 /// defined by a starting and ending date) with a set of attribute /
@@ -686,8 +672,7 @@ pub struct DateRange {
 // Rest
 // -----------------------------------------------------------------------------------------------
 
-/// [`#EXT-X-START:<attribute-list>`]
-/// (https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.5.2)
+/// [`#EXT-X-START:<attribute-list>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.5.2)
 ///
 /// The EXT-X-START tag indicates a preferred point at which to start
 /// playing a Playlist. By default, clients SHOULD start playback at
