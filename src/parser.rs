@@ -42,6 +42,8 @@ use std::string;
 /// }
 /// ```
 pub fn parse_playlist(input: &[u8]) -> IResult<&[u8], Playlist> {
+    m3u_tag(input)?;
+
     match is_master_playlist(input) {
         true => map(parse_master_playlist, Playlist::MasterPlaylist)(input),
         false => map(parse_media_playlist, Playlist::MediaPlaylist)(input),
@@ -135,6 +137,7 @@ pub fn is_master_playlist(input: &[u8]) -> bool {
 /// - Some(true, tagstring): Line contains a master playlist tag
 /// - Some(false, tagstring): Line contains a media playlist tag
 fn contains_master_tag(input: &[u8]) -> Option<(bool, String)> {
+    let (input, _) = m3u_tag(input).ok()?;
     let mut is_master_opt = None;
     let mut current_input: &[u8] = input;
 
