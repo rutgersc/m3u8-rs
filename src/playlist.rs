@@ -279,7 +279,7 @@ impl FromStr for AlternativeMediaType {
             "AUDIO" => Ok(AlternativeMediaType::Audio),
             "VIDEO" => Ok(AlternativeMediaType::Video),
             "SUBTITLES" => Ok(AlternativeMediaType::Subtitles),
-            "CLOSEDCAPTIONS" => Ok(AlternativeMediaType::ClosedCaptions),
+            "CLOSED-CAPTIONS" => Ok(AlternativeMediaType::ClosedCaptions),
             _ => Err(format!(
                 "Unable to create AlternativeMediaType from {:?}",
                 s
@@ -303,7 +303,7 @@ impl fmt::Display for AlternativeMediaType {
                 AlternativeMediaType::Audio => "AUDIO",
                 AlternativeMediaType::Video => "VIDEO",
                 AlternativeMediaType::Subtitles => "SUBTITLES",
-                AlternativeMediaType::ClosedCaptions => "CLOSEDCAPTIONS",
+                AlternativeMediaType::ClosedCaptions => "CLOSED-CAPTIONS",
             }
         )
     }
