@@ -343,8 +343,8 @@ enum MediaPlaylistTag {
     Version(usize),
     Segment(SegmentTag),
     TargetDuration(f32),
-    MediaSequence(i32),
-    DiscontinuitySequence(i32),
+    MediaSequence(u64),
+    DiscontinuitySequence(u64),
     EndList,
     PlaylistType(MediaPlaylistType),
     IFramesOnly,
@@ -644,11 +644,11 @@ fn consume_line(i: &[u8]) -> IResult<&[u8], String> {
     )(i)
 }
 
-fn number(i: &[u8]) -> IResult<&[u8], i32> {
+fn number(i: &[u8]) -> IResult<&[u8], u64> {
     map_res(take_while1(is_digit), |s| {
         // Can't fail because we validated it above already
         let s = str::from_utf8(s).unwrap();
-        str::parse::<i32>(s)
+        str::parse::<u64>(s)
     })(i)
 }
 

@@ -94,9 +94,9 @@ pub struct MasterPlaylist {
 pub struct MediaPlaylist {
     pub version: usize,
     pub target_duration: f32,
-    pub media_sequence: i32,
+    pub media_sequence: u64,
     pub segments: Vec<MediaSegment>,
-    pub discontinuity_sequence: i32,
+    pub discontinuity_sequence: u64,
     pub end_list: bool,
     pub playlist_type: MediaPlaylistType,
     pub i_frames_only: bool,

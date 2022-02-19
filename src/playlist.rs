@@ -401,10 +401,10 @@ pub struct MediaPlaylist {
     /// `#EXT-X-TARGETDURATION:<s>`
     pub target_duration: f32,
     /// `#EXT-X-MEDIA-SEQUENCE:<number>`
-    pub media_sequence: i32,
+    pub media_sequence: u64,
     pub segments: Vec<MediaSegment>,
     /// `#EXT-X-DISCONTINUITY-SEQUENCE:<number>`
-    pub discontinuity_sequence: i32,
+    pub discontinuity_sequence: u64,
     /// `#EXT-X-ENDLIST`
     pub end_list: bool,
     /// `#EXT-X-PLAYLIST-TYPE`
@@ -637,8 +637,8 @@ impl Map {
 /// URI line that follows it in the Playlist.
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct ByteRange {
-    pub length: i32,
-    pub offset: Option<i32>,
+    pub length: u64,
+    pub offset: Option<u64>,
 }
 
 impl ByteRange {
