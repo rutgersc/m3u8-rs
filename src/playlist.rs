@@ -176,7 +176,12 @@ impl VariantStream {
             self.write_stream_inf_common_attributes(w)?;
             write_some_attribute_quoted!(w, ",AUDIO", &self.audio)?;
             write_some_attribute_quoted!(w, ",SUBTITLES", &self.subtitles)?;
-            write_some_attribute_quoted!(w, ",CLOSED-CAPTIONS", &self.closed_captions)?;
+            // handle `CLOSED-CAPTIONS=NONE` case
+            if self.closed_captions.as_deref().eq(&Some("NONE")) {
+                write_some_attribute!(w, ",CLOSED-CAPTIONS", &self.closed_captions)?;
+            } else {
+                write_some_attribute_quoted!(w, ",CLOSED-CAPTIONS", &self.closed_captions)?;
+            }
             writeln!(w)?;
             writeln!(w, "{}", self.uri)
         }
