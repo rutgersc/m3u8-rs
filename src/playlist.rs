@@ -152,8 +152,8 @@ impl VariantStream {
     pub fn from_hashmap(mut attrs: HashMap<String, String>, is_i_frame: bool) -> VariantStream {
         VariantStream {
             is_i_frame,
-            uri: attrs.remove("URI").unwrap_or_else(String::new),
-            bandwidth: attrs.remove("BANDWIDTH").unwrap_or_else(String::new),
+            uri: attrs.remove("URI").unwrap_or_default(),
+            bandwidth: attrs.remove("BANDWIDTH").unwrap_or_default(),
             average_bandwidth: attrs.remove("AVERAGE-BANDWIDTH"),
             codecs: attrs.remove("CODECS"),
             resolution: attrs.remove("RESOLUTION"),
@@ -231,7 +231,7 @@ impl AlternativeMedia {
                 .and_then(|s| AlternativeMediaType::from_str(s).ok())
                 .unwrap_or_default(),
             uri: attrs.remove("URI"),
-            group_id: attrs.remove("GROUP-ID").unwrap_or_else(String::new),
+            group_id: attrs.remove("GROUP-ID").unwrap_or_default(),
             language: attrs.remove("LANGUAGE"),
             assoc_language: attrs.remove("ASSOC-LANGUAGE"),
             name: attrs.remove("NAME").unwrap_or_default(),
@@ -593,7 +593,7 @@ pub struct Key {
 impl Key {
     pub fn from_hashmap(mut attrs: HashMap<String, String>) -> Key {
         Key {
-            method: attrs.remove("METHOD").unwrap_or_else(String::new),
+            method: attrs.remove("METHOD").unwrap_or_default(),
             uri: attrs.remove("URI"),
             iv: attrs.remove("IV"),
             keyformat: attrs.remove("KEYFORMAT"),
@@ -691,7 +691,7 @@ pub struct Start {
 impl Start {
     pub fn from_hashmap(mut attrs: HashMap<String, String>) -> Start {
         Start {
-            time_offset: attrs.remove("TIME-OFFSET").unwrap_or_else(String::new),
+            time_offset: attrs.remove("TIME-OFFSET").unwrap_or_default(),
             precise: attrs.remove("PRECISE").or_else(|| Some("NO".to_string())),
         }
     }
