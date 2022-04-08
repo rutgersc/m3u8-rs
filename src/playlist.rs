@@ -437,9 +437,6 @@ impl MediaPlaylist {
                 self.discontinuity_sequence
             )?;
         }
-        if self.end_list {
-            writeln!(w, "#EXT-X-ENDLIST")?;
-        }
         if let Some(ref v) = self.playlist_type {
             writeln!(w, "#EXT-X-PLAYLIST-TYPE:{}", v)?;
         }
@@ -454,6 +451,9 @@ impl MediaPlaylist {
         }
         for segment in &self.segments {
             segment.write_to(w)?;
+        }
+        if self.end_list {
+            writeln!(w, "#EXT-X-ENDLIST")?;
         }
 
         Ok(())
