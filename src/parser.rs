@@ -249,7 +249,7 @@ fn master_playlist_from_tags(mut tags: Vec<MasterPlaylistTag>) -> MasterPlaylist
     while let Some(tag) = tags.pop() {
         match tag {
             MasterPlaylistTag::Version(v) => {
-                master_playlist.version = v;
+                master_playlist.version = Some(v);
             }
             MasterPlaylistTag::AlternativeMedia(v) => {
                 master_playlist.alternatives.push(v);
@@ -396,7 +396,7 @@ fn media_playlist_from_tags(mut tags: Vec<MediaPlaylistTag>) -> MediaPlaylist {
     while let Some(tag) = tags.pop() {
         match tag {
             MediaPlaylistTag::Version(v) => {
-                media_playlist.version = v;
+                media_playlist.version = Some(v);
             }
             MediaPlaylistTag::TargetDuration(d) => {
                 media_playlist.target_duration = d;

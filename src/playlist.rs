@@ -71,7 +71,7 @@ impl Playlist {
 /// describes a different version of the same content.
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct MasterPlaylist {
-    pub version: usize,
+    pub version: Option<usize>,
     pub variants: Vec<VariantStream>,
     pub session_data: Vec<SessionData>,
     pub session_key: Vec<SessionKey>,
@@ -87,7 +87,11 @@ impl MasterPlaylist {
     }
 
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
-        writeln!(w, "#EXTM3U\n#EXT-X-VERSION:{}", self.version)?;
+        writeln!(w, "#EXTM3U\n")?;
+
+        if let Some(ref v) = self.version {
+            writeln!(w, "#EXT-X-VERSION:{}", v)?;
+        }
 
         for alternative in &self.alternatives {
             alternative.write_to(w)?;
@@ -403,7 +407,7 @@ impl SessionData {
 /// sequentially will play the multimedia presentation.
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct MediaPlaylist {
-    pub version: usize,
+    pub version: Option<usize>,
     /// `#EXT-X-TARGETDURATION:<s>`
     pub target_duration: f32,
     /// `#EXT-X-MEDIA-SEQUENCE:<number>`
@@ -425,7 +429,11 @@ pub struct MediaPlaylist {
 
 impl MediaPlaylist {
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
-        writeln!(w, "#EXTM3U\n#EXT-X-VERSION:{}", self.version)?;
+        writeln!(w, "#EXTM3U\n")?;
+
+        if let Some(ref v) = self.version {
+            writeln!(w, "#EXT-X-VERSION:{}", v)?;
+        }
         writeln!(w, "#EXT-X-TARGETDURATION:{}", self.target_duration)?;
 
         if self.media_sequence != 0 {

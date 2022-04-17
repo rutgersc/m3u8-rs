@@ -199,7 +199,7 @@ fn create_and_parse_master_playlist_empty() {
 #[test]
 fn create_and_parse_master_playlist_full() {
     let mut playlist_original = Playlist::MasterPlaylist(MasterPlaylist {
-        version: 6,
+        version: Some(6),
         alternatives: vec![AlternativeMedia {
             media_type: AlternativeMediaType::Audio,
             uri: Some("alt-media-uri".into()),
@@ -263,6 +263,7 @@ fn create_and_parse_media_playlist_empty() {
 #[test]
 fn create_and_parse_media_playlist_single_segment() {
     let mut playlist_original = Playlist::MediaPlaylist(MediaPlaylist {
+        target_duration: 2.0,
         segments: vec![MediaSegment {
             uri: "20140311T113819-01-338559live.ts".into(),
             duration: 2.002,
@@ -278,7 +279,7 @@ fn create_and_parse_media_playlist_single_segment() {
 #[test]
 fn create_and_parse_media_playlist_full() {
     let mut playlist_original = Playlist::MediaPlaylist(MediaPlaylist {
-        version: 4,
+        version: Some(4),
         target_duration: 3.0,
         media_sequence: 338559,
         discontinuity_sequence: 1234,

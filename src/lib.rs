@@ -41,7 +41,7 @@
 //! use m3u8_rs::{MediaPlaylist, MediaPlaylistType, MediaSegment};
 //!
 //! let playlist = MediaPlaylist {
-//!     version: 6,
+//!     version: Some(6),
 //!     target_duration: 3.0,
 //!     media_sequence: 338559,
 //!     discontinuity_sequence: 1234,
