@@ -12,6 +12,7 @@ use crate::playlist::*;
 use nom::IResult;
 use std::collections::HashMap;
 use std::f32;
+use std::fmt;
 use std::result::Result;
 use std::str;
 use std::str::FromStr;
@@ -542,13 +543,16 @@ fn extmap(i: &[u8]) -> IResult<&[u8], Map> {
         let uri = attrs.get("URI").cloned().unwrap_or_default();
         let byte_range = attrs
             .get("BYTERANGE")
-            .map(|range| match byte_range_val(range.as_bytes()) {
+            .map(|range| match byte_range_val(range.to_string().as_bytes()) {
                 IResult::Ok((_, range)) => Ok(range),
                 IResult::Err(_) => Err("invalid byte range"),
             })
             .transpose()?;
 
-        Ok(Map { uri, byte_range })
+        Ok(Map {
+            uri: uri.to_string(),
+            byte_range,
+        })
     })(i)
 }
 
@@ -601,7 +605,7 @@ fn comment_tag(i: &[u8]) -> IResult<&[u8], String> {
 // Util
 // -----------------------------------------------------------------------------------------------
 
-fn key_value_pairs(i: &[u8]) -> IResult<&[u8], HashMap<String, String>> {
+fn key_value_pairs(i: &[u8]) -> IResult<&[u8], HashMap<String, QuotedOrUnquoted>> {
     fold_many0(
         preceded(space0, key_value_pair),
         HashMap::new,
@@ -612,7 +616,41 @@ fn key_value_pairs(i: &[u8]) -> IResult<&[u8], HashMap<String, String>> {
     )(i)
 }
 
-fn key_value_pair(i: &[u8]) -> IResult<&[u8], (String, String)> {
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum QuotedOrUnquoted {
+    Unquoted(String),
+    Quoted(String),
+}
+
+impl Default for QuotedOrUnquoted {
+    fn default() -> Self {
+        QuotedOrUnquoted::Quoted(String::new())
+    }
+}
+
+impl From<&str> for QuotedOrUnquoted {
+    fn from(s: &str) -> Self {
+        if s.starts_with('"') && s.ends_with('"') {
+            return QuotedOrUnquoted::Quoted(s.trim_matches('"').to_string());
+        }
+        QuotedOrUnquoted::Unquoted(s.to_string())
+    }
+}
+
+impl fmt::Display for QuotedOrUnquoted {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                QuotedOrUnquoted::Unquoted(s) => s,
+                QuotedOrUnquoted::Quoted(u) => u,
+            }
+        )
+    }
+}
+
+fn key_value_pair(i: &[u8]) -> IResult<&[u8], (String, QuotedOrUnquoted)> {
     map(
         tuple((
             peek(none_of("\r\n")),
@@ -625,16 +663,16 @@ fn key_value_pair(i: &[u8]) -> IResult<&[u8], (String, String)> {
     )(i)
 }
 
-fn quoted(i: &[u8]) -> IResult<&[u8], String> {
+fn quoted(i: &[u8]) -> IResult<&[u8], QuotedOrUnquoted> {
     delimited(
         char('\"'),
-        map_res(is_not("\""), from_utf8_slice),
+        map_res(is_not("\""), quoted_from_utf8_slice),
         char('\"'),
     )(i)
 }
 
-fn unquoted(i: &[u8]) -> IResult<&[u8], String> {
-    map_res(is_not(",\r\n"), from_utf8_slice)(i)
+fn unquoted(i: &[u8]) -> IResult<&[u8], QuotedOrUnquoted> {
+    map_res(is_not(",\r\n"), unquoted_from_utf8_slice)(i)
 }
 
 fn consume_line(i: &[u8]) -> IResult<&[u8], String> {
@@ -687,6 +725,20 @@ fn from_utf8_slice(s: &[u8]) -> Result<String, string::FromUtf8Error> {
     String::from_utf8(s.to_vec())
 }
 
+fn quoted_from_utf8_slice(s: &[u8]) -> Result<QuotedOrUnquoted, string::FromUtf8Error> {
+    match String::from_utf8(s.to_vec()) {
+        Ok(q) => Ok(QuotedOrUnquoted::Quoted(q)),
+        Err(e) => Err(e),
+    }
+}
+
+fn unquoted_from_utf8_slice(s: &[u8]) -> Result<QuotedOrUnquoted, string::FromUtf8Error> {
+    match String::from_utf8(s.to_vec()) {
+        Ok(q) => Ok(QuotedOrUnquoted::Unquoted(q)),
+        Err(e) => Err(e),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -729,10 +781,13 @@ mod tests {
             key_value_pairs(b"BANDWIDTH=395000,CODECS=\"avc1.4d001f,mp4a.40.2\"\r\nrest="),
             Result::Ok((
                 "\r\nrest=".as_bytes(),
-                vec![("BANDWIDTH", "395000"), ("CODECS", "avc1.4d001f,mp4a.40.2")]
-                    .into_iter()
-                    .map(|(k, v)| (String::from(k), String::from(v)))
-                    .collect::<HashMap<_, _>>(),
+                vec![
+                    ("BANDWIDTH", "395000"),
+                    ("CODECS", "\"avc1.4d001f,mp4a.40.2\"")
+                ]
+                .into_iter()
+                .map(|(k, v)| (String::from(k), v.into()))
+                .collect::<HashMap<_, _>>(),
             )),
         );
     }
@@ -745,13 +800,13 @@ mod tests {
                 "\nrest".as_bytes(),
                 vec![
                     ("BANDWIDTH", "86000"),
-                    ("URI", "low/iframe.m3u8"),
+                    ("URI", "\"low/iframe.m3u8\""),
                     ("PROGRAM-ID", "1"),
-                    ("RESOLUTION", "1x1"),
+                    ("RESOLUTION", "\"1x1\""),
                     ("VIDEO", "1")
                 ].into_iter()
-                .map(|(k, v)| (String::from(k), String::from(v)))
-                .collect::<HashMap<String,String>>()
+                .map(|(k, v)| (String::from(k), v.into()))
+                .collect::<HashMap<_,_>>()
             ))
         );
     }
@@ -762,10 +817,13 @@ mod tests {
             key_value_pairs(b"BANDWIDTH=300000,CODECS=\"avc1.42c015,mp4a.40.2\"\r\nrest"),
             Result::Ok((
                 "\r\nrest".as_bytes(),
-                vec![("BANDWIDTH", "300000"), ("CODECS", "avc1.42c015,mp4a.40.2")]
-                    .into_iter()
-                    .map(|(k, v)| (String::from(k), String::from(v)))
-                    .collect::<HashMap<String, String>>()
+                vec![
+                    ("BANDWIDTH", "300000"),
+                    ("CODECS", "\"avc1.42c015,mp4a.40.2\"")
+                ]
+                .into_iter()
+                .map(|(k, v)| (String::from(k), v.into()))
+                .collect::<HashMap<_, _>>()
             ))
         );
     }
@@ -782,8 +840,8 @@ mod tests {
                     ("VIDEO", "1")
                 ]
                 .into_iter()
-                .map(|(k, v)| (String::from(k), String::from(v)))
-                .collect::<HashMap<String, String>>()
+                .map(|(k, v)| (String::from(k), v.into()))
+                .collect::<HashMap<_, _>>()
             ))
         );
     }
@@ -792,10 +850,7 @@ mod tests {
     fn test_key_value_pair() {
         assert_eq!(
             key_value_pair(b"PROGRAM-ID=1,rest"),
-            Result::Ok((
-                "rest".as_bytes(),
-                ("PROGRAM-ID".to_string(), "1".to_string())
-            ))
+            Result::Ok(("rest".as_bytes(), ("PROGRAM-ID".to_string(), "1".into())))
         );
     }
 
@@ -839,7 +894,7 @@ mod tests {
     fn quotes() {
         assert_eq!(
             quoted(b"\"value\"rest"),
-            Result::Ok(("rest".as_bytes(), "value".to_string()))
+            Result::Ok(("rest".as_bytes(), "\"value\"".into()))
         );
     }
 

@@ -3,6 +3,7 @@
 //! The main type here is the `Playlist` enum.
 //! Which is either a `MasterPlaylist` or a `MediaPlaylist`.
 
+use crate::QuotedOrUnquoted;
 use std::collections::HashMap;
 use std::f32;
 use std::fmt;
@@ -140,28 +141,31 @@ pub struct VariantStream {
     pub codecs: Option<String>,
     pub resolution: Option<String>,
     pub frame_rate: Option<String>,
-    pub hdcp_level: Option<String>,
+    pub hdcp_level: Option<QuotedOrUnquoted>,
     pub audio: Option<String>,
     pub video: Option<String>,
     pub subtitles: Option<String>,
-    pub closed_captions: Option<String>,
+    pub closed_captions: Option<QuotedOrUnquoted>,
     // PROGRAM-ID tag was removed in protocol version 6
 }
 
 impl VariantStream {
-    pub fn from_hashmap(mut attrs: HashMap<String, String>, is_i_frame: bool) -> VariantStream {
+    pub fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+        is_i_frame: bool,
+    ) -> VariantStream {
         VariantStream {
             is_i_frame,
-            uri: attrs.remove("URI").unwrap_or_else(String::new),
-            bandwidth: attrs.remove("BANDWIDTH").unwrap_or_else(String::new),
-            average_bandwidth: attrs.remove("AVERAGE-BANDWIDTH"),
-            codecs: attrs.remove("CODECS"),
-            resolution: attrs.remove("RESOLUTION"),
-            frame_rate: attrs.remove("FRAME-RATE"),
+            uri: attrs.remove("URI").unwrap_or_default().to_string(),
+            bandwidth: attrs.remove("BANDWIDTH").unwrap_or_default().to_string(),
+            average_bandwidth: attrs.remove("AVERAGE-BANDWIDTH").map(|a| a.to_string()),
+            codecs: attrs.remove("CODECS").map(|c| c.to_string()),
+            resolution: attrs.remove("RESOLUTION").map(|r| r.to_string()),
+            frame_rate: attrs.remove("FRAME-RATE").map(|f| f.to_string()),
             hdcp_level: attrs.remove("HDCP-LEVEL"),
-            audio: attrs.remove("AUDIO"),
-            video: attrs.remove("VIDEO"),
-            subtitles: attrs.remove("SUBTITLES"),
+            audio: attrs.remove("AUDIO").map(|a| a.to_string()),
+            video: attrs.remove("VIDEO").map(|v| v.to_string()),
+            subtitles: attrs.remove("SUBTITLES").map(|s| s.to_string()),
             closed_captions: attrs.remove("CLOSED-CAPTIONS"),
         }
     }
@@ -176,7 +180,7 @@ impl VariantStream {
             self.write_stream_inf_common_attributes(w)?;
             write_some_attribute_quoted!(w, ",AUDIO", &self.audio)?;
             write_some_attribute_quoted!(w, ",SUBTITLES", &self.subtitles)?;
-            write_some_attribute_quoted!(w, ",CLOSED-CAPTIONS", &self.closed_captions)?;
+            write_some_attribute!(w, ",CLOSED-CAPTIONS", &self.closed_captions)?;
             writeln!(w)?;
             writeln!(w, "{}", self.uri)
         }
@@ -219,23 +223,23 @@ pub struct AlternativeMedia {
 }
 
 impl AlternativeMedia {
-    pub fn from_hashmap(mut attrs: HashMap<String, String>) -> AlternativeMedia {
+    pub fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> AlternativeMedia {
         AlternativeMedia {
             media_type: attrs
                 .get("TYPE")
-                .and_then(|s| AlternativeMediaType::from_str(s).ok())
+                .and_then(|s| AlternativeMediaType::from_str(s.to_string().as_str()).ok())
                 .unwrap_or_default(),
-            uri: attrs.remove("URI"),
-            group_id: attrs.remove("GROUP-ID").unwrap_or_else(String::new),
-            language: attrs.remove("LANGUAGE"),
-            assoc_language: attrs.remove("ASSOC-LANGUAGE"),
-            name: attrs.remove("NAME").unwrap_or_default(),
-            default: bool_default_false!(attrs.remove("DEFAULT")),
-            autoselect: bool_default_false!(attrs.remove("AUTOSELECT")),
-            forced: bool_default_false!(attrs.remove("FORCED")),
-            instream_id: attrs.remove("INSTREAM-ID"),
-            characteristics: attrs.remove("CHARACTERISTICS"),
-            channels: attrs.remove("CHANNELS"),
+            uri: attrs.remove("URI").map(|u| u.to_string()),
+            group_id: attrs.remove("GROUP-ID").unwrap_or_default().to_string(),
+            language: attrs.remove("LANGUAGE").map(|l| l.to_string()),
+            assoc_language: attrs.remove("ASSOC-LANGUAGE").map(|a| a.to_string()),
+            name: attrs.remove("NAME").unwrap_or_default().to_string(),
+            default: bool_default_false!(attrs.remove("DEFAULT").map(|s| s.to_string())),
+            autoselect: bool_default_false!(attrs.remove("AUTOSELECT").map(|s| s.to_string())),
+            forced: bool_default_false!(attrs.remove("FORCED").map(|f| f.to_string())),
+            instream_id: attrs.remove("INSTREAM-ID").map(|i| i.to_string()),
+            characteristics: attrs.remove("CHARACTERISTICS").map(|c| c.to_string()),
+            channels: attrs.remove("CHANNELS").map(|c| c.to_string()),
         }
     }
 
@@ -341,14 +345,16 @@ pub struct SessionData {
 }
 
 impl SessionData {
-    pub fn from_hashmap(mut attrs: HashMap<String, String>) -> Result<SessionData, String> {
+    pub fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<SessionData, String> {
         let data_id = match attrs.remove("DATA-ID") {
             Some(data_id) => data_id,
             None => return Err("EXT-X-SESSION-DATA field without DATA-ID".to_string()),
         };
 
-        let value = attrs.remove("VALUE");
-        let uri = attrs.remove("URI");
+        let value = attrs.remove("VALUE").map(|v| v.to_string());
+        let uri = attrs.remove("URI").map(|u| u.to_string());
 
         // SessionData must contain either a VALUE or a URI,
         // but not both https://tools.ietf.org/html/rfc8216#section-4.3.4.4
@@ -370,9 +376,9 @@ impl SessionData {
         };
 
         Ok(SessionData {
-            data_id,
+            data_id: data_id.to_string(),
             field,
-            language: attrs.remove("LANGUAGE"),
+            language: attrs.remove("LANGUAGE").map(|s| s.to_string()),
         })
     }
 
@@ -432,9 +438,6 @@ impl MediaPlaylist {
                 self.discontinuity_sequence
             )?;
         }
-        if self.end_list {
-            writeln!(w, "#EXT-X-ENDLIST")?;
-        }
         if let Some(ref v) = self.playlist_type {
             writeln!(w, "#EXT-X-PLAYLIST-TYPE:{}", v)?;
         }
@@ -449,6 +452,9 @@ impl MediaPlaylist {
         }
         for segment in &self.segments {
             segment.write_to(w)?;
+        }
+        if self.end_list {
+            writeln!(w, "#EXT-X-ENDLIST")?;
         }
 
         Ok(())
@@ -586,13 +592,13 @@ pub struct Key {
 }
 
 impl Key {
-    pub fn from_hashmap(mut attrs: HashMap<String, String>) -> Key {
+    pub fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> Key {
         Key {
-            method: attrs.remove("METHOD").unwrap_or_else(String::new),
-            uri: attrs.remove("URI"),
-            iv: attrs.remove("IV"),
-            keyformat: attrs.remove("KEYFORMAT"),
-            keyformatversions: attrs.remove("KEYFORMATVERSIONS"),
+            method: attrs.remove("METHOD").unwrap_or_default().to_string(),
+            uri: attrs.remove("URI").map(|u| u.to_string()),
+            iv: attrs.remove("IV").map(|i| i.to_string()),
+            keyformat: attrs.remove("KEYFORMAT").map(|k| k.to_string()),
+            keyformatversions: attrs.remove("KEYFORMATVERSIONS").map(|k| k.to_string()),
         }
     }
 
@@ -684,10 +690,13 @@ pub struct Start {
 }
 
 impl Start {
-    pub fn from_hashmap(mut attrs: HashMap<String, String>) -> Start {
+    pub fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> Start {
         Start {
-            time_offset: attrs.remove("TIME-OFFSET").unwrap_or_else(String::new),
-            precise: attrs.remove("PRECISE").or_else(|| Some("NO".to_string())),
+            time_offset: attrs.remove("TIME-OFFSET").unwrap_or_default().to_string(),
+            precise: attrs
+                .remove("PRECISE")
+                .map(|a| a.to_string())
+                .or_else(|| Some("NO".to_string())),
         }
     }
 
