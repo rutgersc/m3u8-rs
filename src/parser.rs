@@ -628,6 +628,29 @@ impl Default for QuotedOrUnquoted {
     }
 }
 
+impl QuotedOrUnquoted {
+    pub fn as_str(&self) -> &str {
+        match self {
+            QuotedOrUnquoted::Quoted(s) => s.as_str(),
+            QuotedOrUnquoted::Unquoted(s) => s.as_str(),
+        }
+    }
+
+    pub fn as_unquoted(&self) -> Option<&str> {
+        match self {
+            QuotedOrUnquoted::Unquoted(s) => Some(s.as_str()),
+            _ => None,
+        }
+    }
+
+    pub fn as_quoted(&self) -> Option<&str> {
+        match self {
+            QuotedOrUnquoted::Quoted(s) => Some(s.as_str()),
+            _ => None,
+        }
+    }
+}
+
 impl From<&str> for QuotedOrUnquoted {
     fn from(s: &str) -> Self {
         if s.starts_with('"') && s.ends_with('"') {
