@@ -5,6 +5,7 @@
 
 use crate::QuotedOrUnquoted;
 use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
 use std::f32;
 use std::fmt;
 use std::fmt::Display;
@@ -69,7 +70,7 @@ impl Playlist {
 /// A [Master Playlist](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4)
 /// provides a set of Variant Streams, each of which
 /// describes a different version of the same content.
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct MasterPlaylist {
     pub version: Option<usize>,
     pub variants: Vec<VariantStream>,
@@ -134,22 +135,22 @@ impl MasterPlaylist {
 /// Clients should switch between different Variant Streams to adapt to
 /// network conditions.  Clients should choose Renditions based on user
 /// preferences.
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct VariantStream {
     pub is_i_frame: bool,
     pub uri: String,
 
     // <attribute-list>
-    pub bandwidth: String,
-    pub average_bandwidth: Option<String>,
+    pub bandwidth: u64,
+    pub average_bandwidth: Option<u64>,
     pub codecs: Option<String>,
-    pub resolution: Option<String>,
-    pub frame_rate: Option<String>,
-    pub hdcp_level: Option<QuotedOrUnquoted>,
+    pub resolution: Option<Resolution>,
+    pub frame_rate: Option<f64>,
+    pub hdcp_level: Option<HDCPLevel>,
     pub audio: Option<String>,
     pub video: Option<String>,
     pub subtitles: Option<String>,
-    pub closed_captions: Option<QuotedOrUnquoted>,
+    pub closed_captions: Option<ClosedCaptionGroupId>,
     // PROGRAM-ID tag was removed in protocol version 6
 }
 
@@ -157,21 +158,118 @@ impl VariantStream {
     pub fn from_hashmap(
         mut attrs: HashMap<String, QuotedOrUnquoted>,
         is_i_frame: bool,
-    ) -> VariantStream {
-        VariantStream {
+    ) -> Result<VariantStream, String> {
+        let uri = attrs
+            .remove("URI")
+            .map(|c| {
+                c.as_quoted()
+                    .ok_or_else(|| format!("URI attribute is an unquoted string"))
+                    .map(|s| s.to_string())
+            })
+            .transpose()?
+            .unwrap_or_default();
+        let bandwidth = attrs
+            .remove("BANDWIDTH")
+            .ok_or_else(|| String::from("Mandatory bandwidth attribute not included"))
+            .and_then(|s| {
+                s.as_unquoted()
+                    .ok_or_else(|| String::from("Bandwidth attribute is a quoted string"))
+                    .and_then(|s| {
+                        s.trim()
+                            .parse::<u64>()
+                            .map_err(|err| format!("Failed to parse bandwidth attribute: {}", err))
+                    })
+            })?;
+        let average_bandwidth = attrs
+            .remove("AVERAGE-BANDWIDTH")
+            .map(|s| {
+                s.as_unquoted()
+                    .ok_or_else(|| String::from("Average bandwidth attribute is a quoted string"))
+                    .and_then(|s| {
+                        s.trim().parse::<u64>().map_err(|err| {
+                            format!("Failed to parse average bandwidth attribute: {}", err)
+                        })
+                    })
+            })
+            .transpose()?;
+        let codecs = attrs
+            .remove("CODECS")
+            .map(|c| {
+                c.as_quoted()
+                    .ok_or_else(|| format!("Codecs attribute is an unquoted string"))
+                    .map(|s| s.to_string())
+            })
+            .transpose()?;
+        let resolution = attrs
+            .remove("RESOLUTION")
+            .map(|r| {
+                r.as_unquoted()
+                    .ok_or_else(|| format!("Resolution attribute is a quoted string"))
+                    .and_then(|s| s.parse::<Resolution>())
+            })
+            .transpose()?;
+        let frame_rate = attrs
+            .remove("FRAME-RATE")
+            .map(|f| {
+                f.as_unquoted()
+                    .ok_or_else(|| format!("Framerate attribute is a quoted string"))
+                    .and_then(|s| {
+                        s.parse::<f64>()
+                            .map_err(|err| format!("Failed to parse framerate: {}", err))
+                    })
+            })
+            .transpose()?;
+        let hdcp_level = attrs
+            .remove("HDCP-LEVEL")
+            .map(|r| {
+                r.as_unquoted()
+                    .ok_or_else(|| format!("HDCP level attribute is a quoted string"))
+                    .and_then(|s| s.parse::<HDCPLevel>())
+            })
+            .transpose()?;
+        let audio = attrs
+            .remove("AUDIO")
+            .map(|c| {
+                c.as_quoted()
+                    .ok_or_else(|| format!("Audio attribute is an unquoted string"))
+                    .map(|s| s.to_string())
+            })
+            .transpose()?;
+        let video = attrs
+            .remove("VIDEO")
+            .map(|c| {
+                c.as_quoted()
+                    .ok_or_else(|| format!("Video attribute is an unquoted string"))
+                    .map(|s| s.to_string())
+            })
+            .transpose()?;
+        let subtitles = attrs
+            .remove("SUBTITLES")
+            .map(|c| {
+                c.as_quoted()
+                    .ok_or_else(|| format!("Subtitles attribute is an unquoted string"))
+                    .map(|s| s.to_string())
+            })
+            .transpose()?;
+        let closed_captions = attrs
+            .remove("CLOSED-CAPTIONS")
+            .map(|c| c.try_into())
+            .transpose()?;
+
+        Ok(VariantStream {
             is_i_frame,
-            uri: attrs.remove("URI").unwrap_or_default().to_string(),
-            bandwidth: attrs.remove("BANDWIDTH").unwrap_or_default().to_string(),
-            average_bandwidth: attrs.remove("AVERAGE-BANDWIDTH").map(|a| a.to_string()),
-            codecs: attrs.remove("CODECS").map(|c| c.to_string()),
-            resolution: attrs.remove("RESOLUTION").map(|r| r.to_string()),
-            frame_rate: attrs.remove("FRAME-RATE").map(|f| f.to_string()),
-            hdcp_level: attrs.remove("HDCP-LEVEL"),
-            audio: attrs.remove("AUDIO").map(|a| a.to_string()),
-            video: attrs.remove("VIDEO").map(|v| v.to_string()),
-            subtitles: attrs.remove("SUBTITLES").map(|s| s.to_string()),
-            closed_captions: attrs.remove("CLOSED-CAPTIONS"),
-        }
+            uri,
+            bandwidth,
+            average_bandwidth,
+            codecs,
+            resolution,
+            frame_rate,
+            hdcp_level,
+            audio,
+            video,
+            subtitles,
+            closed_captions,
+        })
     }
 
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
@@ -184,7 +282,12 @@ impl VariantStream {
             self.write_stream_inf_common_attributes(w)?;
             write_some_attribute_quoted!(w, ",AUDIO", &self.audio)?;
             write_some_attribute_quoted!(w, ",SUBTITLES", &self.subtitles)?;
-            write_some_attribute!(w, ",CLOSED-CAPTIONS", &self.closed_captions)?;
+            if let Some(ref closed_captions) = self.closed_captions {
+                match closed_captions {
+                    ClosedCaptionGroupId::None => write!(w, ",CLOSED-CAPTIONS=NONE")?,
+                    ClosedCaptionGroupId::GroupId(s) => write!(w, ",CLOSED-CAPTIONS=\"{}\"", s)?,
+                }
+            }
             writeln!(w)?;
             writeln!(w, "{}", self.uri)
         }
@@ -198,6 +301,92 @@ impl VariantStream {
         write_some_attribute!(w, ",FRAME-RATE", &self.frame_rate)?;
         write_some_attribute!(w, ",HDCP-LEVEL", &self.hdcp_level)?;
         write_some_attribute_quoted!(w, ",VIDEO", &self.video)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
+pub struct Resolution {
+    pub width: u64,
+    pub height: u64,
+}
+
+impl fmt::Display for Resolution {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}x{}", self.width, self.height)
+    }
+}
+
+impl FromStr for Resolution {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Resolution, String> {
+        match s.split_once('x') {
+            Some((width, height)) => {
+                let width = width
+                    .parse::<u64>()
+                    .map_err(|err| format!("Can't parse resolution attribute: {}", err))?;
+                let height = height
+                    .parse::<u64>()
+                    .map_err(|err| format!("Can't parse resolution attribute: {}", err))?;
+                Ok(Resolution { width, height })
+            }
+            None => Err(String::from("Invalid resolution attribute")),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
+pub enum HDCPLevel {
+    Type0,
+    Type1,
+    None,
+}
+
+impl FromStr for HDCPLevel {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<HDCPLevel, String> {
+        match s {
+            "TYPE-0" => Ok(HDCPLevel::Type0),
+            "TYPE-1" => Ok(HDCPLevel::Type1),
+            "NONE" => Ok(HDCPLevel::None),
+            _ => Err(format!("Unable to create HDCPLevel from {:?}", s)),
+        }
+    }
+}
+
+impl fmt::Display for HDCPLevel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match *self {
+                HDCPLevel::Type0 => "TYPE-0",
+                HDCPLevel::Type1 => "TYPE-1",
+                HDCPLevel::None => "NONE",
+            }
+        )
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+pub enum ClosedCaptionGroupId {
+    None,
+    GroupId(String),
+}
+
+impl TryFrom<QuotedOrUnquoted> for ClosedCaptionGroupId {
+    type Error = String;
+
+    fn try_from(s: QuotedOrUnquoted) -> Result<ClosedCaptionGroupId, String> {
+        match s {
+            QuotedOrUnquoted::Unquoted(s) if s == "NONE" => Ok(ClosedCaptionGroupId::None),
+            QuotedOrUnquoted::Quoted(s) => Ok(ClosedCaptionGroupId::GroupId(s)),
+            _ => Err(format!(
+                "Unable to create ClosedCaptionGroupId from {:?}",
+                s
+            )),
+        }
     }
 }
 
