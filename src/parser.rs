@@ -285,14 +285,14 @@ fn master_playlist_from_tags(mut tags: Vec<MasterPlaylistTag>) -> MasterPlaylist
 }
 
 fn variant_stream_tag(i: &[u8]) -> IResult<&[u8], VariantStream> {
-    map(
+    map_res(
         pair(tag("#EXT-X-STREAM-INF:"), key_value_pairs),
         |(_, attributes)| VariantStream::from_hashmap(attributes, false),
     )(i)
 }
 
 fn variant_i_frame_stream_tag(i: &[u8]) -> IResult<&[u8], VariantStream> {
-    map(
+    map_res(
         pair(tag("#EXT-X-I-FRAME-STREAM-INF:"), key_value_pairs),
         |(_, attributes)| VariantStream::from_hashmap(attributes, true),
     )(i)
@@ -780,7 +780,7 @@ mod tests {
                 VariantStream {
                     is_i_frame: false,
                     uri: "".into(),
-                    bandwidth: "300000".into(),
+                    bandwidth: 300000,
                     average_bandwidth: None,
                     codecs: Some("xxx".into()),
                     resolution: None,
