@@ -8,11 +8,11 @@ use nom::combinator::{complete, eof, map, map_res, opt, peek};
 use nom::multi::{fold_many0, many0};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 
+use crate::attributes::*;
 use crate::playlist::*;
 use nom::IResult;
 use std::collections::HashMap;
 use std::f32;
-use std::fmt;
 use std::result::Result;
 use std::str;
 use std::str::FromStr;
@@ -614,40 +614,6 @@ fn key_value_pairs(i: &[u8]) -> IResult<&[u8], HashMap<String, QuotedOrUnquoted>
             acc
         },
     )(i)
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum QuotedOrUnquoted {
-    Unquoted(String),
-    Quoted(String),
-}
-
-impl Default for QuotedOrUnquoted {
-    fn default() -> Self {
-        QuotedOrUnquoted::Quoted(String::new())
-    }
-}
-
-impl From<&str> for QuotedOrUnquoted {
-    fn from(s: &str) -> Self {
-        if s.starts_with('"') && s.ends_with('"') {
-            return QuotedOrUnquoted::Quoted(s.trim_matches('"').to_string());
-        }
-        QuotedOrUnquoted::Unquoted(s.to_string())
-    }
-}
-
-impl fmt::Display for QuotedOrUnquoted {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                QuotedOrUnquoted::Unquoted(s) => s,
-                QuotedOrUnquoted::Quoted(u) => u,
-            }
-        )
-    }
 }
 
 fn key_value_pair(i: &[u8]) -> IResult<&[u8], (String, QuotedOrUnquoted)> {

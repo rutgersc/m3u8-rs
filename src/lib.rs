@@ -73,3 +73,6 @@ mod parser;
 
 #[cfg(feature = "parser")]
 pub use self::parser::*;
+
+pub mod attributes;
+pub use playlist::*;

@@ -3,11 +3,10 @@
 //! The main type here is the `Playlist` enum.
 //! Which is either a `MasterPlaylist` or a `MediaPlaylist`.
 
-use crate::QuotedOrUnquoted;
+use crate::attributes::*;
 use std::collections::HashMap;
 use std::f32;
 use std::fmt;
-use std::fmt::Display;
 use std::io::Write;
 use std::str::FromStr;
 
@@ -141,11 +140,11 @@ pub struct VariantStream {
     pub codecs: Option<String>,
     pub resolution: Option<String>,
     pub frame_rate: Option<String>,
-    pub hdcp_level: Option<QuotedOrUnquoted>,
+    pub hdcp_level: Option<HdcpLevel>,
     pub audio: Option<String>,
     pub video: Option<String>,
     pub subtitles: Option<String>,
-    pub closed_captions: Option<QuotedOrUnquoted>,
+    pub closed_captions: Option<ClosedCaptions>,
     // PROGRAM-ID tag was removed in protocol version 6
 }
 
@@ -162,11 +161,11 @@ impl VariantStream {
             codecs: attrs.remove("CODECS").map(|c| c.to_string()),
             resolution: attrs.remove("RESOLUTION").map(|r| r.to_string()),
             frame_rate: attrs.remove("FRAME-RATE").map(|f| f.to_string()),
-            hdcp_level: attrs.remove("HDCP-LEVEL"),
+            hdcp_level: attrs.remove("HDCP-LEVEL").map(|h| h.into()),
             audio: attrs.remove("AUDIO").map(|a| a.to_string()),
             video: attrs.remove("VIDEO").map(|v| v.to_string()),
             subtitles: attrs.remove("SUBTITLES").map(|s| s.to_string()),
-            closed_captions: attrs.remove("CLOSED-CAPTIONS"),
+            closed_captions: attrs.remove("CLOSED-CAPTIONS").map(|c| c.into()),
         }
     }
 
@@ -197,7 +196,7 @@ impl VariantStream {
     }
 }
 
-/// [`#EXT-X-MEDIA:<attribute-list>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.4.1)
+/// [`#EXT-X-MEDIA:<attribute-list>`](https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-10.txt#section-4.4.6.1)
 ///
 /// The EXT-X-MEDIA tag is used to relate Media Playlists that contain
 /// alternative Renditions (Section 4.3.4.2.1) of the same content.  For
@@ -226,8 +225,8 @@ impl AlternativeMedia {
     pub fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> AlternativeMedia {
         AlternativeMedia {
             media_type: attrs
-                .get("TYPE")
-                .and_then(|s| AlternativeMediaType::from_str(s.to_string().as_str()).ok())
+                .remove("TYPE")
+                .and_then(|s| AlternativeMediaType::from_str(&s.to_string()).ok())
                 .unwrap_or_default(),
             uri: attrs.remove("URI").map(|u| u.to_string()),
             group_id: attrs.remove("GROUP-ID").unwrap_or_default().to_string(),
@@ -267,7 +266,10 @@ impl AlternativeMedia {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
+// EXT-X-MEDIA:TYPE<AUDIO|VIDEO|SUBTITLES|CLOSED-CAPTIONS>
+// The value is an enumerated-string
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum AlternativeMediaType {
     Audio,
     Video,
@@ -297,19 +299,14 @@ impl Default for AlternativeMediaType {
         AlternativeMediaType::Video
     }
 }
-
 impl fmt::Display for AlternativeMediaType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match *self {
-                AlternativeMediaType::Audio => "AUDIO",
-                AlternativeMediaType::Video => "VIDEO",
-                AlternativeMediaType::Subtitles => "SUBTITLES",
-                AlternativeMediaType::ClosedCaptions => "CLOSED-CAPTIONS",
-            }
-        )
+        match self {
+            AlternativeMediaType::Audio => write!(f, "AUDIO"),
+            AlternativeMediaType::Video => write!(f, "VIDEO"),
+            AlternativeMediaType::Subtitles => write!(f, "SUBTITLES"),
+            AlternativeMediaType::ClosedCaptions => write!(f, "CLOSED-CAPTIONS"),
+        }
     }
 }
 
@@ -584,7 +581,7 @@ impl MediaSegment {
 /// same Media Segment if they ultimately produce the same decryption key.
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct Key {
-    pub method: String,
+    pub method: KeyMethod,
     pub uri: Option<String>,
     pub iv: Option<String>,
     pub keyformat: Option<String>,
@@ -594,7 +591,7 @@ pub struct Key {
 impl Key {
     pub fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> Key {
         Key {
-            method: attrs.remove("METHOD").unwrap_or_default().to_string(),
+            method: attrs.remove("METHOD").map(|m| m.into()).unwrap_or_default(),
             uri: attrs.remove("URI").map(|u| u.to_string()),
             iv: attrs.remove("IV").map(|i| i.to_string()),
             keyformat: attrs.remove("KEYFORMAT").map(|k| k.to_string()),
@@ -714,8 +711,8 @@ pub struct ExtTag {
     pub rest: Option<String>,
 }
 
-impl Display for ExtTag {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for ExtTag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "#EXT-{}", self.tag)?;
         if let Some(v) = &self.rest {
             write!(f, ":{}", v)?;

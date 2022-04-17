@@ -1,5 +1,6 @@
 #![allow(unused_variables, unused_imports, dead_code)]
 
+use m3u8_rs::attributes::*;
 use m3u8_rs::*;
 use nom::AsBytes;
 use std::collections::HashMap;
@@ -321,6 +322,7 @@ fn create_and_parse_media_playlist_full() {
             }],
         }],
     });
+    println!("hello");
     let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
     assert_eq!(playlist_original, playlist_parsed);
 }
