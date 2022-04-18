@@ -87,7 +87,7 @@ impl MasterPlaylist {
     }
 
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
-        writeln!(w, "#EXTM3U\n")?;
+        writeln!(w, "#EXTM3U")?;
 
         if let Some(ref v) = self.version {
             writeln!(w, "#EXT-X-VERSION:{}", v)?;
@@ -429,7 +429,7 @@ pub struct MediaPlaylist {
 
 impl MediaPlaylist {
     pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
-        writeln!(w, "#EXTM3U\n")?;
+        writeln!(w, "#EXTM3U")?;
 
         if let Some(ref v) = self.version {
             writeln!(w, "#EXT-X-VERSION:{}", v)?;
