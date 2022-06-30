@@ -13,6 +13,7 @@ use nom::IResult;
 use std::collections::HashMap;
 use std::f32;
 use std::fmt;
+use std::fmt::Display;
 use std::result::Result;
 use std::str;
 use std::str::FromStr;
@@ -134,7 +135,7 @@ pub fn is_master_playlist(input: &[u8]) -> bool {
 ///
 /// Returns `Some(true/false)` when a master/media tag is found. Otherwise returns `None`.
 ///
-/// - None: Unkown tag or empty line
+/// - None: Unknown tag or empty line
 /// - Some(true, tagstring): Line contains a master playlist tag
 /// - Some(false, tagstring): Line contains a media playlist tag
 fn contains_master_tag(input: &[u8]) -> Option<(bool, String)> {
@@ -299,7 +300,7 @@ fn variant_i_frame_stream_tag(i: &[u8]) -> IResult<&[u8], VariantStream> {
 }
 
 fn alternative_media_tag(i: &[u8]) -> IResult<&[u8], AlternativeMedia> {
-    map(pair(tag("#EXT-X-MEDIA:"), key_value_pairs), |(_, media)| {
+    map_res(pair(tag("#EXT-X-MEDIA:"), key_value_pairs), |(_, media)| {
         AlternativeMedia::from_hashmap(media)
     })(i)
 }
@@ -484,7 +485,7 @@ enum SegmentTag {
     Key(Key),
     Map(Map),
     ProgramDateTime(String),
-    DateRange(String),
+    DateRange(DateRange),
     Unknown(ExtTag),
     Comment(String),
     Uri(String),
@@ -511,10 +512,9 @@ fn media_segment_tag(i: &[u8]) -> IResult<&[u8], SegmentTag> {
             pair(tag("#EXT-X-PROGRAM-DATE-TIME:"), consume_line),
             |(_, line)| SegmentTag::ProgramDateTime(line),
         ),
-        map(
-            pair(tag("#EXT-X-DATE-RANGE:"), consume_line),
-            |(_, line)| SegmentTag::DateRange(line),
-        ),
+        map(pair(tag("#EXT-X-DATERANGE:"), daterange), |(_, range)| {
+            SegmentTag::DateRange(range)
+        }),
         map(ext_tag, SegmentTag::Unknown),
         map(comment_tag, SegmentTag::Comment),
         map(consume_line, SegmentTag::Uri),
@@ -535,23 +535,34 @@ fn duration_title_tag(i: &[u8]) -> IResult<&[u8], (f32, Option<String>)> {
 }
 
 fn key(i: &[u8]) -> IResult<&[u8], Key> {
-    map(key_value_pairs, Key::from_hashmap)(i)
+    map_res(key_value_pairs, Key::from_hashmap)(i)
+}
+
+fn daterange(i: &[u8]) -> IResult<&[u8], DateRange> {
+    map_res(key_value_pairs, DateRange::from_hashmap)(i)
 }
 
 fn extmap(i: &[u8]) -> IResult<&[u8], Map> {
-    map_res(key_value_pairs, |attrs| -> Result<Map, &str> {
-        let uri = attrs.get("URI").cloned().unwrap_or_default();
+    map_res(key_value_pairs, |mut attrs| -> Result<Map, &str> {
+        let uri = match attrs.remove("URI") {
+            Some(QuotedOrUnquoted::Quoted(s)) => Ok(s),
+            Some(QuotedOrUnquoted::Unquoted(_)) => {
+                Err("Can't create URI attribute from unquoted string")
+            }
+            None => Err("URI is empty"),
+        }?;
         let byte_range = attrs
-            .get("BYTERANGE")
+            .remove("BYTERANGE")
             .map(|range| match byte_range_val(range.to_string().as_bytes()) {
                 IResult::Ok((_, range)) => Ok(range),
-                IResult::Err(_) => Err("invalid byte range"),
+                IResult::Err(_) => Err("Invalid byte range"),
             })
             .transpose()?;
 
         Ok(Map {
-            uri: uri.to_string(),
+            uri,
             byte_range,
+            other_attributes: attrs,
         })
     })(i)
 }
@@ -572,7 +583,7 @@ fn version_tag(i: &[u8]) -> IResult<&[u8], usize> {
 }
 
 fn start_tag(i: &[u8]) -> IResult<&[u8], Start> {
-    map(
+    map_res(
         pair(tag("#EXT-X-START:"), key_value_pairs),
         |(_, attributes)| Start::from_hashmap(attributes),
     )(i)
@@ -654,22 +665,23 @@ impl QuotedOrUnquoted {
 impl From<&str> for QuotedOrUnquoted {
     fn from(s: &str) -> Self {
         if s.starts_with('"') && s.ends_with('"') {
-            return QuotedOrUnquoted::Quoted(s.trim_matches('"').to_string());
+            return QuotedOrUnquoted::Quoted(
+                s.strip_prefix('"')
+                    .and_then(|s| s.strip_suffix('"'))
+                    .unwrap_or_default()
+                    .to_string(),
+            );
         }
         QuotedOrUnquoted::Unquoted(s.to_string())
     }
 }
 
-impl fmt::Display for QuotedOrUnquoted {
+impl Display for QuotedOrUnquoted {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                QuotedOrUnquoted::Unquoted(s) => s,
-                QuotedOrUnquoted::Quoted(u) => u,
-            }
-        )
+        match self {
+            QuotedOrUnquoted::Unquoted(s) => write!(f, "{}", s),
+            QuotedOrUnquoted::Quoted(u) => write!(f, "\"{}\"", u),
+        }
     }
 }
 
@@ -790,6 +802,7 @@ mod tests {
                     video: None,
                     subtitles: None,
                     closed_captions: None,
+                    other_attributes: Default::default(),
                 }
             ))
         );
@@ -808,9 +821,9 @@ mod tests {
                     ("BANDWIDTH", "395000"),
                     ("CODECS", "\"avc1.4d001f,mp4a.40.2\"")
                 ]
-                .into_iter()
-                .map(|(k, v)| (String::from(k), v.into()))
-                .collect::<HashMap<_, _>>(),
+                    .into_iter()
+                    .map(|(k, v)| (String::from(k), v.into()))
+                    .collect::<HashMap<_, _>>(),
             )),
         );
     }
@@ -828,8 +841,8 @@ mod tests {
                     ("RESOLUTION", "\"1x1\""),
                     ("VIDEO", "1")
                 ].into_iter()
-                .map(|(k, v)| (String::from(k), v.into()))
-                .collect::<HashMap<_,_>>()
+                    .map(|(k, v)| (String::from(k), v.into()))
+                    .collect::<HashMap<_,_>>()
             ))
         );
     }
@@ -844,9 +857,9 @@ mod tests {
                     ("BANDWIDTH", "300000"),
                     ("CODECS", "\"avc1.42c015,mp4a.40.2\"")
                 ]
-                .into_iter()
-                .map(|(k, v)| (String::from(k), v.into()))
-                .collect::<HashMap<_, _>>()
+                    .into_iter()
+                    .map(|(k, v)| (String::from(k), v.into()))
+                    .collect::<HashMap<_, _>>()
             ))
         );
     }
@@ -862,9 +875,9 @@ mod tests {
                     ("RESOLUTION", "22x22"),
                     ("VIDEO", "1")
                 ]
-                .into_iter()
-                .map(|(k, v)| (String::from(k), v.into()))
-                .collect::<HashMap<_, _>>()
+                    .into_iter()
+                    .map(|(k, v)| (String::from(k), v.into()))
+                    .collect::<HashMap<_, _>>()
             ))
         );
     }

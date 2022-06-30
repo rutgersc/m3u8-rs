@@ -1,15 +1,16 @@
 #![allow(unused_variables, unused_imports, dead_code)]
 
+use m3u8_rs::QuotedOrUnquoted::Quoted;
 use m3u8_rs::*;
 use nom::AsBytes;
 use std::collections::HashMap;
-use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path;
+use std::{fs, io};
 
 fn all_sample_m3u_playlists() -> Vec<path::PathBuf> {
-    let path: std::path::PathBuf = ["sample-playlists"].iter().collect();
+    let path: path::PathBuf = ["sample-playlists"].iter().collect();
     fs::read_dir(path.to_str().unwrap())
         .unwrap()
         .filter_map(Result::ok)
@@ -20,13 +21,13 @@ fn all_sample_m3u_playlists() -> Vec<path::PathBuf> {
 
 fn getm3u(path: &str) -> String {
     let mut buf = String::new();
-    let mut file = fs::File::open(path).unwrap_or_else(|_| panic!("Can't find m3u8: {}", path));
+    let mut file = File::open(path).unwrap_or_else(|_| panic!("Can't find m3u8: {}", path));
     let u = file.read_to_string(&mut buf).expect("Can't read file");
     buf
 }
 
 fn get_sample_playlist(name: &str) -> String {
-    let path: std::path::PathBuf = ["sample-playlists", name].iter().collect();
+    let path: path::PathBuf = ["sample-playlists", name].iter().collect();
     getm3u(path.to_str().unwrap())
 }
 
@@ -38,7 +39,7 @@ fn print_parse_playlist_test(playlist_name: &str) -> bool {
     println!("Parsing playlist file: {:?}", playlist_name);
     let parsed = parse_playlist(input.as_bytes());
 
-    if let Result::Ok((i, o)) = parsed {
+    if let Ok((i, o)) = &parsed {
         println!("{:?}", o);
         true
     } else {
@@ -158,7 +159,7 @@ fn playlist_types() {
 
         println!("{:?} = {:?}", path, is_master);
 
-        assert!(path.to_lowercase().contains("master") == is_master);
+        assert_eq!(path.to_lowercase().contains("master"), is_master);
     }
 }
 
@@ -200,20 +201,53 @@ fn create_and_parse_master_playlist_empty() {
 fn create_and_parse_master_playlist_full() {
     let mut playlist_original = Playlist::MasterPlaylist(MasterPlaylist {
         version: Some(6),
-        alternatives: vec![AlternativeMedia {
-            media_type: AlternativeMediaType::Audio,
-            uri: Some("alt-media-uri".into()),
-            group_id: "group-id".into(),
-            language: Some("language".into()),
-            assoc_language: Some("assoc-language".into()),
-            name: "Xmedia".into(),
-            default: true,    // Its absence indicates an implicit value of NO
-            autoselect: true, // Its absence indicates an implicit value of NO
-            forced: true,     // Its absence indicates an implicit value of NO
-            instream_id: Some("instream_id".into()),
-            characteristics: Some("characteristics".into()),
-            channels: Some("channels".into()),
-        }],
+        alternatives: vec![
+            AlternativeMedia {
+                media_type: AlternativeMediaType::Audio,
+                uri: Some("alt-media-uri".into()),
+                group_id: "group-id".into(),
+                language: Some("language".into()),
+                assoc_language: Some("assoc-language".into()),
+                name: "Xmedia".into(),
+                default: true,    // Its absence indicates an implicit value of NO
+                autoselect: true, // Its absence indicates an implicit value of NO
+                forced: false,    // Its absence indicates an implicit value of NO
+                instream_id: None,
+                characteristics: Some("characteristics".into()),
+                channels: Some("channels".into()),
+                other_attributes: Default::default(),
+            },
+            AlternativeMedia {
+                media_type: AlternativeMediaType::Subtitles,
+                uri: Some("alt-media-uri".into()),
+                group_id: "group-id".into(),
+                language: Some("language".into()),
+                assoc_language: Some("assoc-language".into()),
+                name: "Xmedia".into(),
+                default: true,    // Its absence indicates an implicit value of NO
+                autoselect: true, // Its absence indicates an implicit value of NO
+                forced: true,     // Its absence indicates an implicit value of NO
+                instream_id: None,
+                characteristics: Some("characteristics".into()),
+                channels: Some("channels".into()),
+                other_attributes: Default::default(),
+            },
+            AlternativeMedia {
+                media_type: AlternativeMediaType::ClosedCaptions,
+                uri: None,
+                group_id: "group-id".into(),
+                language: Some("language".into()),
+                assoc_language: Some("assoc-language".into()),
+                name: "Xmedia".into(),
+                default: true,    // Its absence indicates an implicit value of NO
+                autoselect: true, // Its absence indicates an implicit value of NO
+                forced: false,    // Its absence indicates an implicit value of NO
+                instream_id: Some(InstreamId::CC(1)),
+                characteristics: Some("characteristics".into()),
+                channels: Some("channels".into()),
+                other_attributes: Default::default(),
+            },
+        ],
         variants: vec![VariantStream {
             is_i_frame: false,
             uri: "masterplaylist-uri".into(),
@@ -230,22 +264,25 @@ fn create_and_parse_master_playlist_full() {
             video: Some("video".into()),
             subtitles: Some("subtitles".into()),
             closed_captions: Some(ClosedCaptionGroupId::GroupId("closed_captions".into())),
+            other_attributes: Default::default(),
         }],
         session_data: vec![SessionData {
             data_id: "****".into(),
             field: SessionDataField::Value("%%%%".to_string()),
             language: Some("SessionDataLanguage".into()),
+            other_attributes: Default::default(),
         }],
         session_key: vec![SessionKey(Key {
-            method: "AES-128".into(),
+            method: KeyMethod::AES128,
             uri: Some("https://secure.domain.com".into()),
             iv: Some("0xb059217aa2649ce170b734".into()),
             keyformat: Some("xXkeyformatXx".into()),
             keyformatversions: Some("xXFormatVers".into()),
         })],
         start: Some(Start {
-            time_offset: "123123123".into(),
-            precise: Some("YES".into()),
+            time_offset: "123123123".parse().unwrap(),
+            precise: Some(true),
+            other_attributes: Default::default(),
         }),
         independent_segments: true,
         unknown_tags: vec![],
@@ -290,8 +327,9 @@ fn create_and_parse_media_playlist_full() {
         playlist_type: Some(MediaPlaylistType::Vod),
         i_frames_only: true,
         start: Some(Start {
-            time_offset: "9999".into(),
-            precise: Some("YES".into()),
+            time_offset: "9999".parse().unwrap(),
+            precise: Some(true),
+            other_attributes: Default::default(),
         }),
         independent_segments: true,
         segments: vec![MediaSegment {
@@ -304,7 +342,7 @@ fn create_and_parse_media_playlist_full() {
             }),
             discontinuity: true,
             key: Some(Key {
-                method: "AES-128".into(),
+                method: KeyMethod::None,
                 uri: Some("https://secure.domain.com".into()),
                 iv: Some("0xb059217aa2649ce170b734".into()),
                 keyformat: Some("xXkeyformatXx".into()),
@@ -316,14 +354,29 @@ fn create_and_parse_media_playlist_full() {
                     length: 137116,
                     offset: Some(4559),
                 }),
+                other_attributes: Default::default(),
             }),
             program_date_time: Some("broodlordinfestorgg".into()),
-            daterange: None,
+            daterange: Some(DateRange {
+                id: "9999".into(),
+                class: Some("class".into()),
+                start_date: "2018-08-22T21:54:00.079Z".into(),
+                end_date: None,
+                duration: None,
+                planned_duration: Some("40.000".parse().unwrap()),
+                x_prefixed: Some(HashMap::from([(
+                    "X-client-attribute".into(),
+                    "whatever".into(),
+                )])),
+                end_on_next: false,
+                other_attributes: Default::default(),
+            }),
             unknown_tags: vec![ExtTag {
                 tag: "X-CUE-OUT".into(),
                 rest: Some("DURATION=2.002".into()),
             }],
         }],
+        unknown_tags: vec![],
     });
     let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
     assert_eq!(playlist_original, playlist_parsed);
