@@ -260,7 +260,7 @@ impl VariantStream {
         let bandwidth = unquoted_string_parse!(attrs, "BANDWIDTH", |s: &str| s
             .parse::<u64>()
             .map_err(|err| format!("Failed to parse BANDWIDTH attribute: {}", err)))
-            .ok_or_else(|| String::from("EXT-X-STREAM-INF without mandatory BANDWIDTH attribute"))?;
+        .ok_or_else(|| String::from("EXT-X-STREAM-INF without mandatory BANDWIDTH attribute"))?;
         let average_bandwidth = unquoted_string_parse!(attrs, "AVERAGE-BANDWIDTH", |s: &str| s
             .parse::<u64>()
             .map_err(|err| format!("Failed to parse AVERAGE-BANDWIDTH: {}", err)));
@@ -843,7 +843,7 @@ pub struct MediaSegment {
     /// `#EXT-X-MAP:<attribute-list>`
     pub map: Option<Map>,
     /// `#EXT-X-PROGRAM-DATE-TIME:<YYYY-MM-DDThh:mm:ssZ>`
-    pub program_date_time: Option<String>,
+    pub program_date_time: Option<chrono::DateTime<chrono::FixedOffset>>,
     /// `#EXT-X-DATERANGE:<attribute-list>`
     pub daterange: Option<DateRange>,
     /// `#EXT-`
@@ -875,7 +875,7 @@ impl MediaSegment {
             writeln!(w)?;
         }
         if let Some(ref v) = self.program_date_time {
-            writeln!(w, "#EXT-X-PROGRAM-DATE-TIME:{}", v)?;
+            writeln!(w, "#EXT-X-PROGRAM-DATE-TIME:{}", v.to_rfc3339())?;
         }
         if let Some(ref v) = self.daterange {
             write!(w, "#EXT-X-DATERANGE:")?;
@@ -1042,12 +1042,12 @@ impl ByteRange {
 /// The EXT-X-DATERANGE tag associates a Date Range (i.e. a range of time
 /// defined by a starting and ending date) with a set of attribute /
 /// value pairs.
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DateRange {
     pub id: String,
     pub class: Option<String>,
-    pub start_date: String,
-    pub end_date: Option<String>,
+    pub start_date: chrono::DateTime<chrono::FixedOffset>,
+    pub end_date: Option<chrono::DateTime<chrono::FixedOffset>>,
     pub duration: Option<f64>,
     pub planned_duration: Option<f64>,
     pub x_prefixed: Option<HashMap<String, QuotedOrUnquoted>>, //  X-<client-attribute>
@@ -1060,10 +1060,13 @@ impl DateRange {
         let id = quoted_string!(attrs, "ID")
             .ok_or_else(|| String::from("EXT-X-DATERANGE without mandatory ID attribute"))?;
         let class = quoted_string!(attrs, "CLASS");
-        let start_date = quoted_string!(attrs, "START-DATE").ok_or_else(|| {
-            String::from("EXT-X-DATERANGE without mandatory START-DATE attribute")
-        })?;
-        let end_date = quoted_string!(attrs, "END-DATE");
+        let start_date =
+            quoted_string_parse!(attrs, "START-DATE", chrono::DateTime::parse_from_rfc3339)
+                .ok_or_else(|| {
+                    String::from("EXT-X-DATERANGE without mandatory START-DATE attribute")
+                })?;
+        let end_date =
+            quoted_string_parse!(attrs, "END-DATE", chrono::DateTime::parse_from_rfc3339);
         let duration = unquoted_string_parse!(attrs, "DURATION", |s: &str| s
             .parse::<f64>()
             .map_err(|err| format!("Failed to parse DURATION attribute: {}", err)));
@@ -1105,8 +1108,12 @@ impl DateRange {
     pub fn write_attributes_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         write_some_attribute_quoted!(w, "ID", &Some(&self.id))?;
         write_some_attribute_quoted!(w, ",CLASS", &self.class)?;
-        write_some_attribute_quoted!(w, ",START-DATE", &Some(&self.start_date))?;
-        write_some_attribute_quoted!(w, ",END-DATE", &self.end_date)?;
+        write_some_attribute_quoted!(w, ",START-DATE", &Some(&self.start_date.to_rfc3339()))?;
+        write_some_attribute_quoted!(
+            w,
+            ",END-DATE",
+            &self.end_date.as_ref().map(|dt| dt.to_rfc3339())
+        )?;
         write_some_attribute!(w, ",DURATION", &self.duration)?;
         write_some_attribute!(w, ",PLANNED-DURATION", &self.planned_duration)?;
         if let Some(x_prefixed) = &self.x_prefixed {
@@ -1149,7 +1156,7 @@ impl Start {
         let time_offset = unquoted_string_parse!(attrs, "TIME-OFFSET", |s: &str| s
             .parse::<f64>()
             .map_err(|err| format!("Failed to parse TIME-OFFSET attribute: {}", err)))
-            .ok_or_else(|| String::from("EXT-X-START without mandatory TIME-OFFSET attribute"))?;
+        .ok_or_else(|| String::from("EXT-X-START without mandatory TIME-OFFSET attribute"))?;
         Ok(Start {
             time_offset,
             precise: is_yes!(attrs, "PRECISE").into(),

@@ -11,6 +11,7 @@ edition = "2018"
 
 [dependencies]
 nom = { version = "7", optional = true }
+chrono = { version = "0.4" }
 
 [features]
 default = ["parser"]

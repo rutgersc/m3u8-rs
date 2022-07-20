@@ -1,5 +1,6 @@
 #![allow(unused_variables, unused_imports, dead_code)]
 
+use chrono::prelude::*;
 use m3u8_rs::QuotedOrUnquoted::Quoted;
 use m3u8_rs::*;
 use nom::AsBytes;
@@ -356,11 +357,17 @@ fn create_and_parse_media_playlist_full() {
                 }),
                 other_attributes: Default::default(),
             }),
-            program_date_time: Some("broodlordinfestorgg".into()),
+            program_date_time: Some(
+                chrono::FixedOffset::east(8 * 3600)
+                    .ymd(2010, 2, 19)
+                    .and_hms_milli(14, 54, 23, 31),
+            ),
             daterange: Some(DateRange {
                 id: "9999".into(),
                 class: Some("class".into()),
-                start_date: "2018-08-22T21:54:00.079Z".into(),
+                start_date: chrono::FixedOffset::east(8 * 3600)
+                    .ymd(2010, 2, 19)
+                    .and_hms_milli(14, 54, 23, 31),
                 end_date: None,
                 duration: None,
                 planned_duration: Some("40.000".parse().unwrap()),

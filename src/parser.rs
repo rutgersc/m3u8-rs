@@ -484,7 +484,7 @@ enum SegmentTag {
     Discontinuity,
     Key(Key),
     Map(Map),
-    ProgramDateTime(String),
+    ProgramDateTime(chrono::DateTime<chrono::FixedOffset>),
     DateRange(DateRange),
     Unknown(ExtTag),
     Comment(String),
@@ -509,8 +509,8 @@ fn media_segment_tag(i: &[u8]) -> IResult<&[u8], SegmentTag> {
             SegmentTag::Map(map)
         }),
         map(
-            pair(tag("#EXT-X-PROGRAM-DATE-TIME:"), consume_line),
-            |(_, line)| SegmentTag::ProgramDateTime(line),
+            pair(tag("#EXT-X-PROGRAM-DATE-TIME:"), program_date_time),
+            |(_, pdt)| SegmentTag::ProgramDateTime(pdt),
         ),
         map(pair(tag("#EXT-X-DATERANGE:"), daterange), |(_, range)| {
             SegmentTag::DateRange(range)
@@ -536,6 +536,10 @@ fn duration_title_tag(i: &[u8]) -> IResult<&[u8], (f32, Option<String>)> {
 
 fn key(i: &[u8]) -> IResult<&[u8], Key> {
     map_res(key_value_pairs, Key::from_hashmap)(i)
+}
+
+fn program_date_time(i: &[u8]) -> IResult<&[u8], chrono::DateTime<chrono::FixedOffset>> {
+    map_res(consume_line, |s| chrono::DateTime::parse_from_rfc3339(&s))(i)
 }
 
 fn daterange(i: &[u8]) -> IResult<&[u8], DateRange> {
@@ -821,9 +825,9 @@ mod tests {
                     ("BANDWIDTH", "395000"),
                     ("CODECS", "\"avc1.4d001f,mp4a.40.2\"")
                 ]
-                    .into_iter()
-                    .map(|(k, v)| (String::from(k), v.into()))
-                    .collect::<HashMap<_, _>>(),
+                .into_iter()
+                .map(|(k, v)| (String::from(k), v.into()))
+                .collect::<HashMap<_, _>>(),
             )),
         );
     }
@@ -857,9 +861,9 @@ mod tests {
                     ("BANDWIDTH", "300000"),
                     ("CODECS", "\"avc1.42c015,mp4a.40.2\"")
                 ]
-                    .into_iter()
-                    .map(|(k, v)| (String::from(k), v.into()))
-                    .collect::<HashMap<_, _>>()
+                .into_iter()
+                .map(|(k, v)| (String::from(k), v.into()))
+                .collect::<HashMap<_, _>>()
             ))
         );
     }
@@ -875,9 +879,9 @@ mod tests {
                     ("RESOLUTION", "22x22"),
                     ("VIDEO", "1")
                 ]
-                    .into_iter()
-                    .map(|(k, v)| (String::from(k), v.into()))
-                    .collect::<HashMap<_, _>>()
+                .into_iter()
+                .map(|(k, v)| (String::from(k), v.into()))
+                .collect::<HashMap<_, _>>()
             ))
         );
     }
