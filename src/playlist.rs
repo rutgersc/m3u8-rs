@@ -188,6 +188,9 @@ impl MasterPlaylist {
         if let Some(ref v) = self.version {
             writeln!(w, "#EXT-X-VERSION:{}", v)?;
         }
+        if self.independent_segments {
+            writeln!(w, "#EXT-X-INDEPENDENT-SEGMENTS")?;
+        }
 
         for alternative in &self.alternatives {
             alternative.write_to(w)?;
@@ -204,9 +207,6 @@ impl MasterPlaylist {
         }
         if let Some(ref start) = self.start {
             start.write_to(w)?;
-        }
-        if self.independent_segments {
-            writeln!(w, "#EXT-X-INDEPENDENT-SEGMENTS")?;
         }
         for unknown_tag in &self.unknown_tags {
             writeln!(w, "{}", unknown_tag)?;
@@ -746,6 +746,9 @@ impl MediaPlaylist {
         if let Some(ref v) = self.version {
             writeln!(w, "#EXT-X-VERSION:{}", v)?;
         }
+        if self.independent_segments {
+            writeln!(w, "#EXT-X-INDEPENDENT-SEGMENTS")?;
+        }
         writeln!(w, "#EXT-X-TARGETDURATION:{}", self.target_duration)?;
 
         if self.media_sequence != 0 {
@@ -766,9 +769,6 @@ impl MediaPlaylist {
         }
         if let Some(ref start) = self.start {
             start.write_to(w)?;
-        }
-        if self.independent_segments {
-            writeln!(w, "#EXT-X-INDEPENDENT-SEGMENTS")?;
         }
         for segment in &self.segments {
             segment.write_to(w)?;
