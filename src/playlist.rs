@@ -378,7 +378,7 @@ impl FromStr for HDCPLevel {
             "TYPE-0" => Ok(HDCPLevel::Type0),
             "TYPE-1" => Ok(HDCPLevel::Type1),
             "NONE" => Ok(HDCPLevel::None),
-            _ => Err(format!("Unable to create HDCPLevel from {:?}", s)),
+            _ => Ok(HDCPLevel::Other(String::from(s))),
         }
     }
 }
@@ -412,11 +412,8 @@ impl TryFrom<QuotedOrUnquoted> for ClosedCaptionGroupId {
     fn try_from(s: QuotedOrUnquoted) -> Result<ClosedCaptionGroupId, String> {
         match s {
             QuotedOrUnquoted::Unquoted(s) if s == "NONE" => Ok(ClosedCaptionGroupId::None),
+            QuotedOrUnquoted::Unquoted(s) => Ok(ClosedCaptionGroupId::Other(String::from(s))),
             QuotedOrUnquoted::Quoted(s) => Ok(ClosedCaptionGroupId::GroupId(s)),
-            _ => Err(format!(
-                "Unable to create ClosedCaptionGroupId from {:?}",
-                s
-            )),
         }
     }
 }
@@ -556,10 +553,7 @@ impl FromStr for AlternativeMediaType {
             "VIDEO" => Ok(AlternativeMediaType::Video),
             "SUBTITLES" => Ok(AlternativeMediaType::Subtitles),
             "CLOSED-CAPTIONS" => Ok(AlternativeMediaType::ClosedCaptions),
-            _ => Err(format!(
-                "Unable to create AlternativeMediaType from {:?}",
-                s
-            )),
+            _ => Ok(AlternativeMediaType::Other(String::from(s))),
         }
     }
 }
@@ -608,7 +602,7 @@ impl FromStr for InstreamId {
                 .map_err(|err| format!("Unable to create InstreamId from {:?}: {}", s, err))?;
             Ok(InstreamId::Service(service))
         } else {
-            Err(format!("Unable to create InstreamId from {:?}", s))
+            Ok(InstreamId::Other(String::from(s)))
         }
     }
 }
@@ -796,7 +790,7 @@ impl FromStr for MediaPlaylistType {
         match s {
             "EVENT" => Ok(MediaPlaylistType::Event),
             "VOD" => Ok(MediaPlaylistType::Vod),
-            _ => Err(format!("Unable to create MediaPlaylistType from {:?}", s)),
+            _ => Ok(MediaPlaylistType::Other(String::from(s))),
         }
     }
 }
@@ -920,7 +914,7 @@ impl FromStr for KeyMethod {
             "NONE" => Ok(KeyMethod::None),
             "AES-128" => Ok(KeyMethod::AES128),
             "SAMPLE-AES" => Ok(KeyMethod::SampleAES),
-            _ => Err(format!("Unable to create KeyMethod from {:?}", s)),
+            _ => Ok(KeyMethod::Other(String::from(s))),
         }
     }
 }
