@@ -143,7 +143,7 @@ fn contains_master_tag(input: &[u8]) -> Option<(bool, String)> {
     let mut is_master_opt = None;
     let mut current_input: &[u8] = input;
 
-    while is_master_opt == None {
+    while is_master_opt.is_none() && !current_input.is_empty() {
         match is_master_playlist_tag_line(current_input) {
             IResult::Ok((rest, result)) => {
                 current_input = rest;
@@ -984,6 +984,14 @@ mod tests {
         assert_eq!(
             duration_title_tag(b"2.002,title\nrest"),
             Result::Ok(("rest".as_bytes(), (2.002f32, Some("title".to_string()))))
+        );
+    }
+
+    #[test]
+    fn incomplete_manifest() {
+        assert_eq!(
+            is_master_playlist("#EXTM3U\n#EXT-X-VERSION:5\n#EXT-X-TARGETDU".as_bytes()),
+            false
         );
     }
 }
