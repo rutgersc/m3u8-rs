@@ -989,9 +989,8 @@ mod tests {
 
     #[test]
     fn incomplete_manifest() {
-        assert_eq!(
-            is_master_playlist("#EXTM3U\n#EXT-X-VERSION:5\n#EXT-X-TARGETDU".as_bytes()),
-            false
-        );
+        assert!(!is_master_playlist(
+            "#EXTM3U\n#EXT-X-VERSION:5\n#EXT-X-TARGETDU".as_bytes()
+        ));
     }
 }
