@@ -412,7 +412,7 @@ impl TryFrom<QuotedOrUnquoted> for ClosedCaptionGroupId {
     fn try_from(s: QuotedOrUnquoted) -> Result<ClosedCaptionGroupId, String> {
         match s {
             QuotedOrUnquoted::Unquoted(s) if s == "NONE" => Ok(ClosedCaptionGroupId::None),
-            QuotedOrUnquoted::Unquoted(s) => Ok(ClosedCaptionGroupId::Other(String::from(s))),
+            QuotedOrUnquoted::Unquoted(s) => Ok(ClosedCaptionGroupId::Other(s)),
             QuotedOrUnquoted::Quoted(s) => Ok(ClosedCaptionGroupId::GroupId(s)),
         }
     }
