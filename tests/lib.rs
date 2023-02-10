@@ -358,16 +358,18 @@ fn create_and_parse_media_playlist_full() {
                 other_attributes: Default::default(),
             }),
             program_date_time: Some(
-                chrono::FixedOffset::east(8 * 3600)
-                    .ymd(2010, 2, 19)
-                    .and_hms_milli(14, 54, 23, 31),
+                chrono::FixedOffset::east_opt(8 * 3600)
+                    .unwrap()
+                    .with_ymd_and_hms(2010, 2, 19, 14, 54, 23)
+                    .unwrap(),
             ),
             daterange: Some(DateRange {
                 id: "9999".into(),
                 class: Some("class".into()),
-                start_date: chrono::FixedOffset::east(8 * 3600)
-                    .ymd(2010, 2, 19)
-                    .and_hms_milli(14, 54, 23, 31),
+                start_date: chrono::FixedOffset::east_opt(8 * 3600)
+                    .unwrap()
+                    .with_ymd_and_hms(2010, 2, 19, 14, 54, 23)
+                    .unwrap(),
                 end_date: None,
                 duration: None,
                 planned_duration: Some("40.000".parse().unwrap()),
