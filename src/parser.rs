@@ -52,7 +52,7 @@ pub fn parse_playlist(input: &[u8]) -> IResult<&[u8], Playlist> {
     }
 }
 
-/// Parses an m3u8 playlist just like `parse_playlist`, except that this returns an [std::result::Result](std::result::Result) instead of a [nom::IResult](https://docs.rs/nom/1.2.3/nom/enum.IResult.html).
+/// Parses an m3u8 playlist just like `parse_playlist`, except that this returns an [std::result::Result](std::result::Result) instead of a [`nom::IResult`](https://docs.rs/nom/1.2.3/nom/enum.IResult.html).
 /// However, since [nom::IResult](nom::IResult) is now an [alias to Result](https://github.com/Geal/nom/blob/master/doc/upgrading_to_nom_5.md), this is no longer needed.
 ///
 /// # Examples
@@ -128,7 +128,7 @@ pub fn parse_media_playlist_res(
 /// When a media tag or no master tag is found, this returns false.
 pub fn is_master_playlist(input: &[u8]) -> bool {
     // Assume it's not a master playlist
-    contains_master_tag(input).map(|t| t.0).unwrap_or(false)
+    contains_master_tag(input).map_or(false, |t| t.0)
 }
 
 /// Scans input looking for either a master or media `#EXT` tag.
@@ -639,28 +639,27 @@ pub enum QuotedOrUnquoted {
 
 impl Default for QuotedOrUnquoted {
     fn default() -> Self {
-        QuotedOrUnquoted::Quoted(String::new())
+        Self::Quoted(String::new())
     }
 }
 
 impl QuotedOrUnquoted {
     pub fn as_str(&self) -> &str {
         match self {
-            QuotedOrUnquoted::Quoted(s) => s.as_str(),
-            QuotedOrUnquoted::Unquoted(s) => s.as_str(),
+            Self::Quoted(s) | Self::Unquoted(s) => s.as_str(),
         }
     }
 
     pub fn as_unquoted(&self) -> Option<&str> {
         match self {
-            QuotedOrUnquoted::Unquoted(s) => Some(s.as_str()),
+            Self::Unquoted(s) => Some(s.as_str()),
             _ => None,
         }
     }
 
     pub fn as_quoted(&self) -> Option<&str> {
         match self {
-            QuotedOrUnquoted::Quoted(s) => Some(s.as_str()),
+            Self::Quoted(s) => Some(s.as_str()),
             _ => None,
         }
     }
@@ -669,22 +668,22 @@ impl QuotedOrUnquoted {
 impl From<&str> for QuotedOrUnquoted {
     fn from(s: &str) -> Self {
         if s.starts_with('"') && s.ends_with('"') {
-            return QuotedOrUnquoted::Quoted(
+            return Self::Quoted(
                 s.strip_prefix('"')
                     .and_then(|s| s.strip_suffix('"'))
                     .unwrap_or_default()
                     .to_string(),
             );
         }
-        QuotedOrUnquoted::Unquoted(s.to_string())
+        Self::Unquoted(s.to_string())
     }
 }
 
 impl Display for QuotedOrUnquoted {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            QuotedOrUnquoted::Unquoted(s) => write!(f, "{}", s),
-            QuotedOrUnquoted::Quoted(u) => write!(f, "\"{}\"", u),
+            Self::Unquoted(s) => write!(f, "{}", s),
+            Self::Quoted(u) => write!(f, "\"{}\"", u),
         }
     }
 }
@@ -744,18 +743,20 @@ fn float(i: &[u8]) -> IResult<&[u8], f32> {
             take_while1(is_digit),
             opt(preceded(char('.'), take_while1(is_digit))),
         ),
-        |(left, right): (&[u8], Option<&[u8]>)| match right {
-            Some(right) => {
-                let n = &i[..(left.len() + right.len() + 1)];
-                // Can't fail because we validated it above already
-                let n = str::from_utf8(n).unwrap();
-                n.parse()
-            }
-            None => {
-                // Can't fail because we validated it above already
-                let left = str::from_utf8(left).unwrap();
-                left.parse()
-            }
+        |(left, right): (&[u8], Option<&[u8]>)| {
+            right.map_or_else(
+                || {
+                    // Can't fail because we validated it above already
+                    let left = str::from_utf8(left).unwrap();
+                    left.parse()
+                },
+                |right| {
+                    let n = &i[..=(left.len() + right.len())];
+                    // Can't fail because we validated it above already
+                    let n = str::from_utf8(n).unwrap();
+                    n.parse()
+                },
+            )
         },
     )(i)
 }
