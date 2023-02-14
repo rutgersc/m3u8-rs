@@ -468,7 +468,7 @@ impl AlternativeMedia {
         let default = is_yes!(attrs, "DEFAULT");
         let autoselect = is_yes!(attrs, "AUTOSELECT");
 
-        #[cfg(feature = "lenient")]
+        #[cfg(not(feature = "lenient"))]
         if media_type != AlternativeMediaType::Subtitles && attrs.contains_key("FORCED") {
             return Err(String::from(
                 "FORCED attribute must not be included in non-SUBTITLE Alternative Medias",
