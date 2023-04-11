@@ -869,7 +869,11 @@ impl MediaSegment {
             writeln!(w)?;
         }
         if let Some(ref v) = self.program_date_time {
-            writeln!(w, "#EXT-X-PROGRAM-DATE-TIME:{}", v.to_rfc3339())?;
+            writeln!(
+                w,
+                "#EXT-X-PROGRAM-DATE-TIME:{}",
+                v.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+            )?;
         }
         if let Some(ref v) = self.daterange {
             write!(w, "#EXT-X-DATERANGE:")?;
