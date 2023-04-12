@@ -555,13 +555,16 @@ fn extmap(i: &[u8]) -> IResult<&[u8], Map> {
             }
             None => Err("URI is empty"),
         }?;
-        let byte_range = attrs
-            .remove("BYTERANGE")
-            .map(|range| match byte_range_val(range.to_string().as_bytes()) {
-                IResult::Ok((_, range)) => Ok(range),
+        let byte_range = match attrs.remove("BYTERANGE") {
+            Some(QuotedOrUnquoted::Quoted(s)) => match byte_range_val(s.as_bytes()) {
+                IResult::Ok((_, range)) => Ok(Some(range)),
                 IResult::Err(_) => Err("Invalid byte range"),
-            })
-            .transpose()?;
+            },
+            Some(QuotedOrUnquoted::Unquoted(_)) => {
+                Err("Can't create BYTERANGE attribute from unquoted string")
+            }
+            None => Ok(None),
+        }?;
 
         Ok(Map {
             uri,
