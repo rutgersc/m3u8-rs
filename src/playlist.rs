@@ -1007,8 +1007,9 @@ impl Map {
     pub fn write_attributes_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
         write!(w, "URI=\"{}\"", self.uri)?;
         if let Some(ref byte_range) = self.byte_range {
-            write!(w, ",BYTERANGE=")?;
+            write!(w, ",BYTERANGE=\"")?;
             byte_range.write_value_to(w)?;
+            write!(w, "\"")?;
         }
         Ok(())
     }
