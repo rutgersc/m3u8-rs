@@ -934,6 +934,14 @@ mod tests {
     }
 
     #[test]
+    fn empty_comment() {
+        assert_eq!(
+            comment_tag(b"#\nxxx"),
+            Result::Ok(("xxx".as_bytes(), None))
+        );
+    }
+
+    #[test]
     fn quotes() {
         assert_eq!(
             quoted(b"\"value\"rest"),
