@@ -218,7 +218,7 @@ enum MasterPlaylistTag {
     SessionKey(SessionKey),
     Start(Start),
     IndependentSegments,
-    Comment(String),
+    Comment(Option<String>),
     Uri(String),
     Unknown(ExtTag),
 }
@@ -487,7 +487,7 @@ enum SegmentTag {
     ProgramDateTime(chrono::DateTime<chrono::FixedOffset>),
     DateRange(DateRange),
     Unknown(ExtTag),
-    Comment(String),
+    Comment(Option<String>),
     Uri(String),
 }
 
@@ -609,10 +609,10 @@ fn ext_tag(i: &[u8]) -> IResult<&[u8], ExtTag> {
     )(i)
 }
 
-fn comment_tag(i: &[u8]) -> IResult<&[u8], String> {
+fn comment_tag(i: &[u8]) -> IResult<&[u8], Option<String>> {
     map(
         pair(
-            preceded(char('#'), map_res(is_not("\r\n"), from_utf8_slice)),
+            preceded(char('#'), opt(map_res(is_not("\r\n"), from_utf8_slice))),
             take(1usize),
         ),
         |(text, _)| text,
@@ -929,7 +929,7 @@ mod tests {
     fn comment() {
         assert_eq!(
             comment_tag(b"#Hello\nxxx"),
-            Result::Ok(("xxx".as_bytes(), "Hello".to_string()))
+            Result::Ok(("xxx".as_bytes(), Some("Hello".to_string())))
         );
     }
 
