@@ -761,6 +761,11 @@ impl MediaPlaylist {
         if self.i_frames_only {
             writeln!(w, "#EXT-X-I-FRAMES-ONLY")?;
         }
+
+        for unknown_tag in &self.unknown_tags {
+            writeln!(w, "{}", unknown_tag)?;
+        }
+
         if let Some(ref start) = self.start {
             start.write_to(w)?;
         }
