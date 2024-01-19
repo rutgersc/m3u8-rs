@@ -64,6 +64,32 @@
 //! //let mut file = std::fs::File::open("playlist.m3u8").unwrap();
 //! //playlist.write_to(&mut file).unwrap();
 //! ```
+//!
+//! Controlling the output precision for floats, such as #EXTINF (default is unset)
+//!
+//! ```
+//! use std::sync::atomic::Ordering;
+//! use m3u8_rs::{WRITE_OPT_FLOAT_PRECISION, MediaPlaylist, MediaSegment};
+//!
+//! WRITE_OPT_FLOAT_PRECISION.store(5, Ordering::Relaxed);
+//!
+//! let playlist = MediaPlaylist {
+//!     target_duration: 3,
+//!     segments: vec![
+//!         MediaSegment {
+//!             duration: 2.9,
+//!             title: Some("title".into()),
+//!             ..Default::default()
+//!         },
+//!     ],
+//!     ..Default::default()
+//! };
+//!
+//! let mut v: Vec<u8> = Vec::new();
+//!
+//! playlist.write_to(&mut v).unwrap();
+//! let m3u8_str: &str = std::str::from_utf8(&v).unwrap();
+//! assert!(m3u8_str.contains("#EXTINF:2.90000,title"));
 
 mod playlist;
 pub use playlist::*;

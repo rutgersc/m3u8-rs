@@ -6,11 +6,16 @@
 use crate::QuotedOrUnquoted;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
-use std::f32;
 use std::fmt;
 use std::fmt::Display;
 use std::io::Write;
 use std::str::FromStr;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::usize::MAX;
+use std::{f32, usize};
+
+/// The output precision for floats, such as #EXTINF (default is unset)
+pub static WRITE_OPT_FLOAT_PRECISION: AtomicUsize = AtomicUsize::new(MAX);
 
 macro_rules! write_some_attribute_quoted {
     ($w:expr, $tag:expr, $o:expr) => {
@@ -884,7 +889,14 @@ impl MediaSegment {
             writeln!(w, "{}", unknown_tag)?;
         }
 
-        write!(w, "#EXTINF:{},", self.duration)?;
+        match WRITE_OPT_FLOAT_PRECISION.load(Ordering::Relaxed) {
+            MAX => {
+                write!(w, "#EXTINF:{},", self.duration)?;
+            }
+            n => {
+                write!(w, "#EXTINF:{:.*},", n, self.duration)?;
+            }
+        };
 
         if let Some(ref v) = self.title {
             writeln!(w, "{}", v)?;
