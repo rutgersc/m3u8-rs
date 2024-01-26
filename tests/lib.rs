@@ -304,7 +304,7 @@ fn create_and_parse_media_playlist_empty() {
 #[test]
 fn create_and_parse_media_playlist_single_segment() {
     let mut playlist_original = Playlist::MediaPlaylist(MediaPlaylist {
-        target_duration: 2.0,
+        target_duration: 2,
         segments: vec![MediaSegment {
             uri: "20140311T113819-01-338559live.ts".into(),
             duration: 2.002,
@@ -321,7 +321,7 @@ fn create_and_parse_media_playlist_single_segment() {
 fn create_and_parse_media_playlist_full() {
     let mut playlist_original = Playlist::MediaPlaylist(MediaPlaylist {
         version: Some(4),
-        target_duration: 3.0,
+        target_duration: 3,
         media_sequence: 338559,
         discontinuity_sequence: 1234,
         end_list: true,
