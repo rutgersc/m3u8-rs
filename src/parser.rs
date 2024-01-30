@@ -344,7 +344,7 @@ fn parse_media_playlist_tags(i: &[u8]) -> IResult<&[u8], Vec<MediaPlaylistTag>> 
 enum MediaPlaylistTag {
     Version(usize),
     Segment(SegmentTag),
-    TargetDuration(f32),
+    TargetDuration(u64),
     MediaSequence(u64),
     DiscontinuitySequence(u64),
     EndList,
@@ -361,7 +361,7 @@ fn media_playlist_tag(i: &[u8]) -> IResult<&[u8], MediaPlaylistTag> {
     alt((
         map(version_tag, MediaPlaylistTag::Version),
         map(
-            pair(tag("#EXT-X-TARGETDURATION:"), float),
+            pair(tag("#EXT-X-TARGETDURATION:"), number),
             |(_, duration)| MediaPlaylistTag::TargetDuration(duration),
         ),
         map(

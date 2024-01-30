@@ -42,7 +42,7 @@
 //!
 //! let playlist = MediaPlaylist {
 //!     version: Some(6),
-//!     target_duration: 3.0,
+//!     target_duration: 3,
 //!     media_sequence: 338559,
 //!     discontinuity_sequence: 1234,
 //!     end_list: true,
