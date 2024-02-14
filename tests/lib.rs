@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path;
+use std::sync::atomic::Ordering;
 use std::{fs, io};
 
 fn all_sample_m3u_playlists() -> Vec<path::PathBuf> {
@@ -199,6 +200,36 @@ fn create_and_parse_master_playlist_empty() {
 }
 
 #[test]
+fn create_segment_float_inf() {
+    let playlist = Playlist::MediaPlaylist(MediaPlaylist {
+        version: Some(6),
+        target_duration: 3,
+        media_sequence: 338559,
+        discontinuity_sequence: 1234,
+        end_list: true,
+        playlist_type: Some(MediaPlaylistType::Vod),
+        segments: vec![MediaSegment {
+            uri: "20140311T113819-01-338559live.ts".into(),
+            duration: 2.000f32,
+            title: Some("title".into()),
+            ..Default::default()
+        }],
+        ..Default::default()
+    });
+
+    let mut v: Vec<u8> = Vec::new();
+    playlist.write_to(&mut v).unwrap();
+    let m3u8_str: &str = std::str::from_utf8(&v).unwrap();
+    assert!(m3u8_str.contains("#EXTINF:2,title"));
+
+    WRITE_OPT_FLOAT_PRECISION.store(5, Ordering::Relaxed);
+
+    playlist.write_to(&mut v).unwrap();
+    let m3u8_str: &str = std::str::from_utf8(&v).unwrap();
+    assert!(m3u8_str.contains("#EXTINF:2.00000,title"));
+}
+
+#[test]
 fn create_and_parse_master_playlist_full() {
     let mut playlist_original = Playlist::MasterPlaylist(MasterPlaylist {
         version: Some(6),
@@ -382,6 +413,7 @@ fn create_and_parse_media_playlist_full() {
                 tag: "X-CUE-OUT".into(),
                 rest: Some("DURATION=2.002".into()),
             }],
+            ..Default::default()
         }],
         unknown_tags: vec![],
     });
