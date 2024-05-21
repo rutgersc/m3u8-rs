@@ -421,7 +421,7 @@ fn create_and_parse_media_playlist_full() {
         part_inf: Default::default(),
         skip: Default::default(),
         preload_hint: Default::default(),
-        rendition_report: Default::default()
+        rendition_report: Default::default(),
     });
     let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
     assert_eq!(playlist_original, playlist_parsed);
@@ -569,9 +569,7 @@ fn create_and_parse_media_playlist_llhls() {
             part_hold_back: Some(1.5),
             can_block_reload: true,
         }),
-        part_inf: Some(PartInf {
-            part_target: 0.5,
-        }),
+        part_inf: Some(PartInf { part_target: 0.5 }),
         skip: Some(Skip {
             skipped_segments: 3,
         }),

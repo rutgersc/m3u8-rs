@@ -875,7 +875,6 @@ pub struct MediaSegment {
     /// `#EXT-`
     pub unknown_tags: Vec<ExtTag>,
 
-
     // LL-HLS specific fields
     pub parts: Vec<Part>,
 }
@@ -1082,7 +1081,6 @@ impl ByteRange {
     }
 }
 
-
 impl Display for ByteRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.length)?;
@@ -1105,12 +1103,14 @@ impl FromStr for ByteRange {
             .map_err(|err| format!("Failed to parse length in BYTERANGE: {}", err))?;
         let offset = parts
             .next()
-            .map(|o| o.parse::<u64>().map_err(|err| format!("Failed to parse offset in BYTERANGE: {}", err)))
+            .map(|o| {
+                o.parse::<u64>()
+                    .map_err(|err| format!("Failed to parse offset in BYTERANGE: {}", err))
+            })
             .transpose()?;
         Ok(ByteRange { length, offset })
     }
 }
-
 
 /// [`#EXT-X-DATERANGE:<attribute-list>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.2.7)
 ///
@@ -1208,7 +1208,6 @@ impl DateRange {
     }
 }
 
-
 // Implementing structs for LL-HLS
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct ServerControl {
@@ -1219,7 +1218,9 @@ pub struct ServerControl {
 }
 
 impl ServerControl {
-    pub(crate) fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> Result<ServerControl, String> {
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<ServerControl, String> {
         let can_skip_until = unquoted_string_parse!(attrs, "CAN-SKIP-UNTIL", |s: &str| s
             .parse::<f64>()
             .map_err(|err| format!("Failed to parse CAN-SKIP-UNTIL attribute: {}", err)));
@@ -1257,11 +1258,13 @@ pub struct PartInf {
 }
 
 impl PartInf {
-    pub(crate) fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> Result<PartInf, String> {
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<PartInf, String> {
         let part_target = unquoted_string_parse!(attrs, "PART-TARGET", |s: &str| s
             .parse::<f64>()
             .map_err(|err| format!("Failed to parse PART-TARGET attribute: {}", err)))
-            .ok_or_else(|| String::from("EXT-X-PART-INF without mandatory PART-TARGET attribute"))?;
+        .ok_or_else(|| String::from("EXT-X-PART-INF without mandatory PART-TARGET attribute"))?;
 
         Ok(PartInf { part_target })
     }
@@ -1282,12 +1285,14 @@ pub struct Part {
 }
 
 impl Part {
-    pub(crate) fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> Result<Part, String> {
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<Part, String> {
         let uri = quoted_string!(attrs, "URI").unwrap_or_default();
         let duration = unquoted_string_parse!(attrs, "DURATION", |s: &str| s
             .parse::<f64>()
             .map_err(|err| format!("Failed to parse DURATION attribute: {}", err)))
-            .ok_or_else(|| String::from("EXT-X-PART without mandatory DURATION attribute"))?;
+        .ok_or_else(|| String::from("EXT-X-PART without mandatory DURATION attribute"))?;
         let independent = is_yes!(attrs, "INDEPENDENT");
         let gap = is_yes!(attrs, "GAP");
         let byte_range = quoted_string_parse!(attrs, "BYTERANGE", |s: &str| s.parse::<ByteRange>());
@@ -1302,7 +1307,11 @@ impl Part {
     }
 
     pub(crate) fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
-        write!(w, "#EXT-X-PART:URI=\"{}\",DURATION={}", self.uri, self.duration)?;
+        write!(
+            w,
+            "#EXT-X-PART:URI=\"{}\",DURATION={}",
+            self.uri, self.duration
+        )?;
         if self.independent {
             write!(w, ",INDEPENDENT=YES")?;
         }
@@ -1324,11 +1333,13 @@ pub struct Skip {
 }
 
 impl Skip {
-    pub(crate) fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> Result<Skip, String> {
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<Skip, String> {
         let skipped_segments = unquoted_string_parse!(attrs, "SKIPPED-SEGMENTS", |s: &str| s
             .parse::<u64>()
             .map_err(|err| format!("Failed to parse SKIPPED-SEGMENTS attribute: {}", err)))
-            .ok_or_else(|| String::from("EXT-X-SKIP without mandatory SKIPPED-SEGMENTS attribute"))?;
+        .ok_or_else(|| String::from("EXT-X-SKIP without mandatory SKIPPED-SEGMENTS attribute"))?;
 
         Ok(Skip { skipped_segments })
     }
@@ -1347,7 +1358,9 @@ pub struct PreloadHint {
 }
 
 impl PreloadHint {
-    pub(crate) fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> Result<PreloadHint, String> {
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<PreloadHint, String> {
         let hint_type = unquoted_string!(attrs, "TYPE")
             .ok_or_else(|| String::from("EXT-X-PRELOAD-HINT without mandatory TYPE attribute"))?;
         let uri = quoted_string!(attrs, "URI")
@@ -1361,7 +1374,11 @@ impl PreloadHint {
     }
 
     pub(crate) fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
-        write!(w, "#EXT-X-PRELOAD-HINT:TYPE={},URI=\"{}\"", self.hint_type, self.uri)?;
+        write!(
+            w,
+            "#EXT-X-PRELOAD-HINT:TYPE={},URI=\"{}\"",
+            self.hint_type, self.uri
+        )?;
         if let Some(ref byte_range) = self.byte_range {
             write!(w, ",BYTERANGE=\"")?;
             byte_range.write_value_to(w)?;
@@ -1379,9 +1396,12 @@ pub struct RenditionReport {
 }
 
 impl RenditionReport {
-    pub(crate) fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> Result<RenditionReport, String> {
-        let uri = quoted_string!(attrs, "URI")
-            .ok_or_else(|| String::from("EXT-X-RENDITION-REPORT without mandatory URI attribute"))?;
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<RenditionReport, String> {
+        let uri = quoted_string!(attrs, "URI").ok_or_else(|| {
+            String::from("EXT-X-RENDITION-REPORT without mandatory URI attribute")
+        })?;
         let last_msn = unquoted_string_parse!(attrs, "LAST-MSN", |s: &str| s
             .parse::<u64>()
             .map_err(|err| format!("Failed to parse LAST-MSN attribute: {}", err)));

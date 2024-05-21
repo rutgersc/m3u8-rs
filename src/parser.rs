@@ -521,7 +521,6 @@ enum SegmentTag {
     Part(Part),
 }
 
-
 fn media_segment_tag(i: &[u8]) -> IResult<&[u8], SegmentTag> {
     alt((
         map(
@@ -813,7 +812,6 @@ fn unquoted_from_utf8_slice(s: &[u8]) -> Result<QuotedOrUnquoted, string::FromUt
     }
 }
 
-
 // Low latency HLS parsers
 
 fn server_control_tag(i: &[u8]) -> IResult<&[u8], ServerControl> {
@@ -837,7 +835,6 @@ fn part_tag(i: &[u8]) -> IResult<&[u8], Part> {
     )(i)
 }
 
-
 fn skip_tag(i: &[u8]) -> IResult<&[u8], Skip> {
     map_res(
         pair(tag("#EXT-X-SKIP:"), key_value_pairs),
@@ -858,7 +855,6 @@ fn rendition_report_tag(i: &[u8]) -> IResult<&[u8], RenditionReport> {
         |(_, attributes)| RenditionReport::from_hashmap(attributes),
     )(i)
 }
-
 
 #[cfg(test)]
 mod tests {
