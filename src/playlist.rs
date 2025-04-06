@@ -863,16 +863,33 @@ impl MediaSegment {
         if self.discontinuity {
             writeln!(w, "#EXT-X-DISCONTINUITY")?;
         }
-        if let Some(ref key) = self.key {
-            write!(w, "#EXT-X-KEY:")?;
-            key.write_attributes_to(w)?;
-            writeln!(w)?;
+
+        fn write_key<T: Write>(w: &mut T, key: &Option<Key>) -> std::io::Result<()> {
+            if let Some(ref key) = key {
+                write!(w, "#EXT-X-KEY:")?;
+                key.write_attributes_to(w)?;
+                writeln!(w)?;
+            }
+            Ok(())
         }
-        if let Some(ref map) = self.map {
-            write!(w, "#EXT-X-MAP:")?;
-            map.write_attributes_to(w)?;
-            writeln!(w)?;
+        fn write_map<T: Write>(w: &mut T, map: &Option<Map>) -> std::io::Result<()> {
+            if let Some(ref map) = map {
+                write!(w, "#EXT-X-MAP:")?;
+                map.write_attributes_to(w)?;
+                writeln!(w)?;
+            }
+            Ok(())
         }
+
+        let map_after_key = self.map.as_ref().map(|m| m.after_key).unwrap_or(false);
+        if map_after_key {
+            write_key(w, &self.key)?;
+            write_map(w, &self.map)?;
+        } else {
+            write_map(w, &self.map)?;
+            write_key(w, &self.key)?;
+        }
+
         if let Some(ref v) = self.program_date_time {
             writeln!(
                 w,
@@ -1013,6 +1030,8 @@ pub struct Map {
     pub uri: String,
     pub byte_range: Option<ByteRange>,
     pub other_attributes: HashMap<String, QuotedOrUnquoted>,
+    /// Whether the EXT-X-MAP tag locates after the EXT-X-KEY tag
+    pub after_key: bool,
 }
 
 impl Map {

@@ -437,7 +437,8 @@ fn media_playlist_from_tags(mut tags: Vec<MediaPlaylistTag>) -> MediaPlaylist {
                 SegmentTag::Key(k) => {
                     encryption_key = Some(k);
                 }
-                SegmentTag::Map(m) => {
+                SegmentTag::Map(mut m) => {
+                    m.after_key = encryption_key.is_some();
                     map = Some(m);
                 }
                 SegmentTag::ProgramDateTime(d) => {
@@ -570,6 +571,8 @@ fn extmap(i: &[u8]) -> IResult<&[u8], Map> {
             uri,
             byte_range,
             other_attributes: attrs,
+            // Still not sure
+            after_key: false,
         })
     })(i)
 }

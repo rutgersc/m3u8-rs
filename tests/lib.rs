@@ -387,6 +387,7 @@ fn create_and_parse_media_playlist_full() {
                     offset: Some(4559),
                 }),
                 other_attributes: Default::default(),
+                after_key: true,
             }),
             program_date_time: Some(
                 chrono::FixedOffset::east(8 * 3600)
