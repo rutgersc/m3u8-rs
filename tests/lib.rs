@@ -482,3 +482,21 @@ fn parsing_binary_data_should_fail_cleanly() {
 
     assert!(res.is_err());
 }
+
+#[test]
+fn parsing_media_playlist_with_customer_ele_tags_cbc_hvo73() {
+    let input = get_sample_playlist("media-playlist-with-customer-ele-tags-cbc-hvo73.m3u8");
+    let parsed = parse_media_playlist_res(input.as_bytes()).unwrap();
+    
+    // Assert that we have the expected ELE customer tags, like #EXT-X-ELE_RATING:TV_US,0,Not%20rated, #EXT-X-ELE_TITLE
+    assert!(parsed.custom_ele_tags.contains_key("TITLE"), "Missing ELE_TITLE tag");
+    assert_eq!(parsed.custom_ele_tags.get("TITLE").unwrap(), "", "ELE_TITLE value should be empty");
+    assert!(parsed.custom_ele_tags.contains_key("RATING"), "Missing ELE_RATING tag");
+    assert_eq!(
+        parsed.custom_ele_tags.get("RATING").unwrap(), 
+        "TV_US,0,Not%20rated", 
+        "ELE_RATING value doesn't match expected value"
+    );
+    assert_eq!(parsed.custom_ele_tags.len(), 2, "Expected exactly 2 ELE tags");
+    assert!(true, "Successfully parsed playlist with custom ELE tags");
+}

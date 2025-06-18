@@ -736,6 +736,8 @@ pub struct MediaPlaylist {
     pub independent_segments: bool,
     /// `#EXT-X-DATERANGE:<attribute-list>`
     pub date_ranges: Vec<DateRange>,
+    /// #EXT-X-ELE_<ele_name>:<value>
+    pub custom_ele_tags: HashMap<String, String>,
     /// Unknown tags before the first media segment
     pub unknown_tags: Vec<ExtTag>,
 }
@@ -778,6 +780,13 @@ impl MediaPlaylist {
             write!(w, "#EXT-X-DATERANGE:")?;
             daterange.write_attributes_to(w)?;
             writeln!(w)?;
+        }
+        for (ele_name, value) in &self.custom_ele_tags {
+            if value.is_empty() {
+                writeln!(w, "#EXT-X-ELE_{}", ele_name)?;
+            } else {
+                writeln!(w, "#EXT-X-ELE_{}:{}", ele_name, value)?;
+            }
         }
         if self.end_list {
             writeln!(w, "#EXT-X-ENDLIST")?;
