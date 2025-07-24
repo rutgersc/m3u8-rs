@@ -855,6 +855,11 @@ impl MediaSegment {
     }
 
     pub(crate) fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
+        if let Some(ref map) = self.map {
+            write!(w, "#EXT-X-MAP:")?;
+            map.write_attributes_to(w)?;
+            writeln!(w)?;
+        }
         if let Some(ref byte_range) = self.byte_range {
             write!(w, "#EXT-X-BYTERANGE:")?;
             byte_range.write_value_to(w)?;
@@ -866,11 +871,6 @@ impl MediaSegment {
         if let Some(ref key) = self.key {
             write!(w, "#EXT-X-KEY:")?;
             key.write_attributes_to(w)?;
-            writeln!(w)?;
-        }
-        if let Some(ref map) = self.map {
-            write!(w, "#EXT-X-MAP:")?;
-            map.write_attributes_to(w)?;
             writeln!(w)?;
         }
         if let Some(ref v) = self.program_date_time {
