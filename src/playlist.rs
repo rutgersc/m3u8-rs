@@ -452,12 +452,13 @@ pub struct AlternativeMedia {
 impl AlternativeMedia {
     pub(crate) fn from_hashmap(
         mut attrs: HashMap<String, QuotedOrUnquoted>,
+        strict: bool,
     ) -> Result<AlternativeMedia, String> {
         let media_type = unquoted_string_parse!(attrs, "TYPE")
             .ok_or_else(|| String::from("EXT-X-MEDIA without mandatory TYPE attribute"))?;
         let uri = quoted_string!(attrs, "URI");
 
-        if media_type == AlternativeMediaType::ClosedCaptions && uri.is_some() {
+        if strict && media_type == AlternativeMediaType::ClosedCaptions && uri.is_some() {
             return Err(String::from(
                 "URI attribute must not be included in CLOSED-CAPTIONS Alternative Medias",
             ));
@@ -472,21 +473,25 @@ impl AlternativeMedia {
         let default = is_yes!(attrs, "DEFAULT");
         let autoselect = is_yes!(attrs, "AUTOSELECT");
 
-        if media_type != AlternativeMediaType::Subtitles && attrs.contains_key("FORCED") {
+        if strict && media_type != AlternativeMediaType::Subtitles && attrs.contains_key("FORCED") {
             return Err(String::from(
                 "FORCED attribute must not be included in non-SUBTITLE Alternative Medias",
             ));
         }
         let forced = is_yes!(attrs, "FORCED");
 
-        if media_type != AlternativeMediaType::ClosedCaptions && attrs.contains_key("INSTREAM-ID") {
-            return Err(String::from("INSTREAM-ID attribute must not be included in non-CLOSED-CAPTIONS Alternative Medias"));
-        } else if media_type == AlternativeMediaType::ClosedCaptions
-            && !attrs.contains_key("INSTREAM-ID")
-        {
-            return Err(String::from(
-                "INSTREAM-ID attribute must be included in CLOSED-CAPTIONS Alternative Medias",
-            ));
+        if strict {
+            if media_type != AlternativeMediaType::ClosedCaptions
+                && attrs.contains_key("INSTREAM-ID")
+            {
+                return Err(String::from("INSTREAM-ID attribute must not be included in non-CLOSED-CAPTIONS Alternative Medias"));
+            } else if media_type == AlternativeMediaType::ClosedCaptions
+                && !attrs.contains_key("INSTREAM-ID")
+            {
+                return Err(String::from(
+                    "INSTREAM-ID attribute must be included in CLOSED-CAPTIONS Alternative Medias",
+                ));
+            }
         }
         let instream_id = quoted_string_parse!(attrs, "INSTREAM-ID");
         let characteristics = quoted_string!(attrs, "CHARACTERISTICS");
