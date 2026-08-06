@@ -4,6 +4,7 @@
 //! Which is either a `MasterPlaylist` or a `MediaPlaylist`.
 
 use crate::QuotedOrUnquoted;
+use chrono::DateTime;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
@@ -157,8 +158,8 @@ pub enum Playlist {
 impl Playlist {
     pub fn write_to<T: Write>(&self, writer: &mut T) -> std::io::Result<()> {
         match *self {
-            Playlist::MasterPlaylist(ref pl) => pl.write_to(writer),
-            Playlist::MediaPlaylist(ref pl) => pl.write_to(writer),
+            Self::MasterPlaylist(ref pl) => pl.write_to(writer),
+            Self::MediaPlaylist(ref pl) => pl.write_to(writer),
         }
     }
 }
@@ -259,7 +260,7 @@ impl VariantStream {
     pub(crate) fn from_hashmap(
         mut attrs: HashMap<String, QuotedOrUnquoted>,
         is_i_frame: bool,
-    ) -> Result<VariantStream, String> {
+    ) -> Result<Self, String> {
         let uri = quoted_string!(attrs, "URI").unwrap_or_default();
         // TODO: keep in attrs if parsing optional attributes fails
         let bandwidth = unquoted_string_parse!(attrs, "BANDWIDTH", |s: &str| s
@@ -280,11 +281,11 @@ impl VariantStream {
         let subtitles = quoted_string!(attrs, "SUBTITLES");
         let closed_captions = attrs
             .remove("CLOSED-CAPTIONS")
-            .map(|c| c.try_into())
+            .map(TryInto::try_into)
             .transpose()?;
         let other_attributes = if attrs.is_empty() { None } else { Some(attrs) };
 
-        Ok(VariantStream {
+        Ok(Self {
             is_i_frame,
             uri,
             bandwidth,
@@ -351,7 +352,7 @@ impl Display for Resolution {
 impl FromStr for Resolution {
     type Err = String;
 
-    fn from_str(s: &str) -> Result<Resolution, String> {
+    fn from_str(s: &str) -> Result<Self, String> {
         match s.split_once('x') {
             Some((width, height)) => {
                 let width = width
@@ -360,7 +361,7 @@ impl FromStr for Resolution {
                 let height = height
                     .parse::<u64>()
                     .map_err(|err| format!("Can't parse RESOLUTION attribute height: {}", err))?;
-                Ok(Resolution { width, height })
+                Ok(Self { width, height })
             }
             None => Err(String::from("Invalid RESOLUTION attribute")),
         }
@@ -378,12 +379,12 @@ pub enum HDCPLevel {
 impl FromStr for HDCPLevel {
     type Err = String;
 
-    fn from_str(s: &str) -> Result<HDCPLevel, String> {
+    fn from_str(s: &str) -> Result<Self, String> {
         match s {
-            "TYPE-0" => Ok(HDCPLevel::Type0),
-            "TYPE-1" => Ok(HDCPLevel::Type1),
-            "NONE" => Ok(HDCPLevel::None),
-            _ => Ok(HDCPLevel::Other(String::from(s))),
+            "TYPE-0" => Ok(Self::Type0),
+            "TYPE-1" => Ok(Self::Type1),
+            "NONE" => Ok(Self::None),
+            _ => Ok(Self::Other(String::from(s))),
         }
     }
 }
@@ -394,10 +395,10 @@ impl Display for HDCPLevel {
             f,
             "{}",
             match self {
-                HDCPLevel::Type0 => "TYPE-0",
-                HDCPLevel::Type1 => "TYPE-1",
-                HDCPLevel::None => "NONE",
-                HDCPLevel::Other(s) => s,
+                Self::Type0 => "TYPE-0",
+                Self::Type1 => "TYPE-1",
+                Self::None => "NONE",
+                Self::Other(s) => s,
             }
         )
     }
@@ -414,11 +415,11 @@ pub enum ClosedCaptionGroupId {
 impl TryFrom<QuotedOrUnquoted> for ClosedCaptionGroupId {
     type Error = String;
 
-    fn try_from(s: QuotedOrUnquoted) -> Result<ClosedCaptionGroupId, String> {
+    fn try_from(s: QuotedOrUnquoted) -> Result<Self, String> {
         match s {
-            QuotedOrUnquoted::Unquoted(s) if s == "NONE" => Ok(ClosedCaptionGroupId::None),
-            QuotedOrUnquoted::Unquoted(s) => Ok(ClosedCaptionGroupId::Other(s)),
-            QuotedOrUnquoted::Quoted(s) => Ok(ClosedCaptionGroupId::GroupId(s)),
+            QuotedOrUnquoted::Unquoted(s) if s == "NONE" => Ok(Self::None),
+            QuotedOrUnquoted::Unquoted(s) => Ok(Self::Other(s)),
+            QuotedOrUnquoted::Quoted(s) => Ok(Self::GroupId(s)),
         }
     }
 }
@@ -452,7 +453,7 @@ pub struct AlternativeMedia {
 impl AlternativeMedia {
     pub(crate) fn from_hashmap(
         mut attrs: HashMap<String, QuotedOrUnquoted>,
-    ) -> Result<AlternativeMedia, String> {
+    ) -> Result<Self, String> {
         let media_type = unquoted_string_parse!(attrs, "TYPE")
             .ok_or_else(|| String::from("EXT-X-MEDIA without mandatory TYPE attribute"))?;
         let uri = quoted_string!(attrs, "URI");
@@ -472,6 +473,7 @@ impl AlternativeMedia {
         let default = is_yes!(attrs, "DEFAULT");
         let autoselect = is_yes!(attrs, "AUTOSELECT");
 
+        #[cfg(not(feature = "lenient"))]
         if media_type != AlternativeMediaType::Subtitles && attrs.contains_key("FORCED") {
             return Err(String::from(
                 "FORCED attribute must not be included in non-SUBTITLE Alternative Medias",
@@ -493,7 +495,7 @@ impl AlternativeMedia {
         let channels = quoted_string!(attrs, "CHANNELS");
         let other_attributes = if attrs.is_empty() { None } else { Some(attrs) };
 
-        Ok(AlternativeMedia {
+        Ok(Self {
             media_type,
             uri,
             group_id,
@@ -552,20 +554,20 @@ pub enum AlternativeMediaType {
 impl FromStr for AlternativeMediaType {
     type Err = String;
 
-    fn from_str(s: &str) -> Result<AlternativeMediaType, String> {
+    fn from_str(s: &str) -> Result<Self, String> {
         match s {
-            "AUDIO" => Ok(AlternativeMediaType::Audio),
-            "VIDEO" => Ok(AlternativeMediaType::Video),
-            "SUBTITLES" => Ok(AlternativeMediaType::Subtitles),
-            "CLOSED-CAPTIONS" => Ok(AlternativeMediaType::ClosedCaptions),
-            _ => Ok(AlternativeMediaType::Other(String::from(s))),
+            "AUDIO" => Ok(Self::Audio),
+            "VIDEO" => Ok(Self::Video),
+            "SUBTITLES" => Ok(Self::Subtitles),
+            "CLOSED-CAPTIONS" => Ok(Self::ClosedCaptions),
+            _ => Ok(Self::Other(String::from(s))),
         }
     }
 }
 
 impl Default for AlternativeMediaType {
-    fn default() -> AlternativeMediaType {
-        AlternativeMediaType::Video
+    fn default() -> Self {
+        Self::Video
     }
 }
 
@@ -575,11 +577,11 @@ impl Display for AlternativeMediaType {
             f,
             "{}",
             match self {
-                AlternativeMediaType::Audio => "AUDIO",
-                AlternativeMediaType::Video => "VIDEO",
-                AlternativeMediaType::Subtitles => "SUBTITLES",
-                AlternativeMediaType::ClosedCaptions => "CLOSED-CAPTIONS",
-                AlternativeMediaType::Other(s) => s.as_str(),
+                Self::Audio => "AUDIO",
+                Self::Video => "VIDEO",
+                Self::Subtitles => "SUBTITLES",
+                Self::ClosedCaptions => "CLOSED-CAPTIONS",
+                Self::Other(s) => s.as_str(),
             }
         )
     }
@@ -595,19 +597,19 @@ pub enum InstreamId {
 impl FromStr for InstreamId {
     type Err = String;
 
-    fn from_str(s: &str) -> Result<InstreamId, String> {
+    fn from_str(s: &str) -> Result<Self, String> {
         if let Some(cc) = s.strip_prefix("CC") {
             let cc = cc
                 .parse::<u8>()
                 .map_err(|err| format!("Unable to create InstreamId from {:?}: {}", s, err))?;
-            Ok(InstreamId::CC(cc))
+            Ok(Self::CC(cc))
         } else if let Some(service) = s.strip_prefix("SERVICE") {
             let service = service
                 .parse::<u8>()
                 .map_err(|err| format!("Unable to create InstreamId from {:?}: {}", s, err))?;
-            Ok(InstreamId::Service(service))
+            Ok(Self::Service(service))
         } else {
-            Ok(InstreamId::Other(String::from(s)))
+            Ok(Self::Other(String::from(s)))
         }
     }
 }
@@ -615,9 +617,9 @@ impl FromStr for InstreamId {
 impl Display for InstreamId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            InstreamId::CC(cc) => write!(f, "CC{}", cc),
-            InstreamId::Service(service) => write!(f, "SERVICE{}", service),
-            InstreamId::Other(s) => write!(f, "{}", s),
+            Self::CC(cc) => write!(f, "CC{}", cc),
+            Self::Service(service) => write!(f, "SERVICE{}", service),
+            Self::Other(s) => write!(f, "{}", s),
         }
     }
 }
@@ -657,7 +659,7 @@ pub struct SessionData {
 impl SessionData {
     pub(crate) fn from_hashmap(
         mut attrs: HashMap<String, QuotedOrUnquoted>,
-    ) -> Result<SessionData, String> {
+    ) -> Result<Self, String> {
         let data_id = quoted_string!(attrs, "DATA-ID")
             .ok_or_else(|| String::from("EXT-X-SESSION-DATA field without DATA-ID attribute"))?;
 
@@ -670,23 +672,23 @@ impl SessionData {
             (Some(value), None) => SessionDataField::Value(value),
             (None, Some(uri)) => SessionDataField::Uri(uri),
             (Some(_), Some(_)) => {
-                return Err(format![
+                return Err(format!(
                     "EXT-X-SESSION-DATA tag {} contains both a value and an URI",
                     data_id
-                ])
+                ))
             }
             (None, None) => {
-                return Err(format![
+                return Err(format!(
                     "EXT-X-SESSION-DATA tag {} must contain either a value or an URI",
                     data_id
-                ])
+                ))
             }
         };
 
         let language = quoted_string!(attrs, "LANGUAGE");
         let other_attributes = if attrs.is_empty() { None } else { Some(attrs) };
 
-        Ok(SessionData {
+        Ok(Self {
             data_id,
             field,
             language,
@@ -791,11 +793,11 @@ pub enum MediaPlaylistType {
 impl FromStr for MediaPlaylistType {
     type Err = String;
 
-    fn from_str(s: &str) -> Result<MediaPlaylistType, String> {
+    fn from_str(s: &str) -> Result<Self, String> {
         match s {
-            "EVENT" => Ok(MediaPlaylistType::Event),
-            "VOD" => Ok(MediaPlaylistType::Vod),
-            _ => Ok(MediaPlaylistType::Other(String::from(s))),
+            "EVENT" => Ok(Self::Event),
+            "VOD" => Ok(Self::Vod),
+            _ => Ok(Self::Other(String::from(s))),
         }
     }
 }
@@ -806,17 +808,17 @@ impl Display for MediaPlaylistType {
             f,
             "{}",
             match self {
-                MediaPlaylistType::Event => "EVENT",
-                MediaPlaylistType::Vod => "VOD",
-                MediaPlaylistType::Other(s) => s,
+                Self::Event => "EVENT",
+                Self::Vod => "VOD",
+                Self::Other(s) => s,
             }
         )
     }
 }
 
 impl Default for MediaPlaylistType {
-    fn default() -> MediaPlaylistType {
-        MediaPlaylistType::Event
+    fn default() -> Self {
+        Self::Event
     }
 }
 
@@ -850,8 +852,8 @@ pub struct MediaSegment {
 }
 
 impl MediaSegment {
-    pub fn empty() -> MediaSegment {
-        Default::default()
+    pub fn empty() -> Self {
+        Self::default()
     }
 
     pub(crate) fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
@@ -918,19 +920,19 @@ pub enum KeyMethod {
 
 impl Default for KeyMethod {
     fn default() -> Self {
-        KeyMethod::None
+        Self::None
     }
 }
 
 impl FromStr for KeyMethod {
     type Err = String;
 
-    fn from_str(s: &str) -> Result<KeyMethod, String> {
+    fn from_str(s: &str) -> Result<Self, String> {
         match s {
-            "NONE" => Ok(KeyMethod::None),
-            "AES-128" => Ok(KeyMethod::AES128),
-            "SAMPLE-AES" => Ok(KeyMethod::SampleAES),
-            _ => Ok(KeyMethod::Other(String::from(s))),
+            "NONE" => Ok(Self::None),
+            "AES-128" => Ok(Self::AES128),
+            "SAMPLE-AES" => Ok(Self::SampleAES),
+            _ => Ok(Self::Other(String::from(s))),
         }
     }
 }
@@ -941,10 +943,10 @@ impl Display for KeyMethod {
             f,
             "{}",
             match self {
-                KeyMethod::None => "NONE",
-                KeyMethod::AES128 => "AES-128",
-                KeyMethod::SampleAES => "SAMPLE-AES",
-                KeyMethod::Other(s) => s,
+                Self::None => "NONE",
+                Self::AES128 => "AES-128",
+                Self::SampleAES => "SAMPLE-AES",
+                Self::Other(s) => s,
             }
         )
     }
@@ -970,7 +972,7 @@ pub struct Key {
 impl Key {
     pub(crate) fn from_hashmap(
         mut attrs: HashMap<String, QuotedOrUnquoted>,
-    ) -> Result<Key, String> {
+    ) -> Result<Self, String> {
         let method: KeyMethod = unquoted_string_parse!(attrs, "METHOD")
             .ok_or_else(|| String::from("EXT-X-KEY without mandatory METHOD attribute"))?;
 
@@ -982,7 +984,7 @@ impl Key {
         let keyformat = quoted_string!(attrs, "KEYFORMAT");
         let keyformatversions = quoted_string!(attrs, "KEYFORMATVERSIONS");
 
-        Ok(Key {
+        Ok(Self {
             method,
             uri,
             iv,
@@ -1067,7 +1069,7 @@ pub struct DateRange {
 }
 
 impl DateRange {
-    pub fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> Result<DateRange, String> {
+    pub fn from_hashmap(mut attrs: HashMap<String, QuotedOrUnquoted>) -> Result<Self, String> {
         let id = quoted_string!(attrs, "ID")
             .ok_or_else(|| String::from("EXT-X-DATERANGE without mandatory ID attribute"))?;
         let class = quoted_string!(attrs, "CLASS");
@@ -1087,7 +1089,7 @@ impl DateRange {
         let end_on_next = is_yes!(attrs, "END-ON-NEXT");
         let mut x_prefixed = HashMap::new();
         let mut other_attributes = HashMap::new();
-        for (k, v) in attrs.into_iter() {
+        for (k, v) in attrs {
             if k.starts_with("X-") {
                 x_prefixed.insert(k, v);
             } else {
@@ -1095,7 +1097,7 @@ impl DateRange {
             }
         }
 
-        Ok(DateRange {
+        Ok(Self {
             id,
             class,
             start_date,
@@ -1123,7 +1125,7 @@ impl DateRange {
         write_some_attribute_quoted!(
             w,
             ",END-DATE",
-            &self.end_date.as_ref().map(|dt| dt.to_rfc3339())
+            &self.end_date.as_ref().map(DateTime::to_rfc3339)
         )?;
         write_some_attribute!(w, ",DURATION", &self.duration)?;
         write_some_attribute!(w, ",PLANNED-DURATION", &self.planned_duration)?;
@@ -1163,12 +1165,12 @@ pub struct Start {
 impl Start {
     pub(crate) fn from_hashmap(
         mut attrs: HashMap<String, QuotedOrUnquoted>,
-    ) -> Result<Start, String> {
+    ) -> Result<Self, String> {
         let time_offset = unquoted_string_parse!(attrs, "TIME-OFFSET", |s: &str| s
             .parse::<f64>()
             .map_err(|err| format!("Failed to parse TIME-OFFSET attribute: {}", err)))
         .ok_or_else(|| String::from("EXT-X-START without mandatory TIME-OFFSET attribute"))?;
-        Ok(Start {
+        Ok(Self {
             time_offset,
             precise: is_yes!(attrs, "PRECISE").into(),
             other_attributes: attrs,

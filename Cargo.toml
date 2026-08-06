@@ -16,4 +16,5 @@ chrono = { version = "0.4", default-features = false, features = [ "std" ] }
 [features]
 default = ["parser"]
 parser = ["nom"]
+lenient = []
 
