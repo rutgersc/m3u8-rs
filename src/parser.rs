@@ -19,7 +19,7 @@ use std::str;
 use std::str::FromStr;
 use std::string;
 
-/// Parse an m3u8 playlist.
+/// Parse an m3u8 playlist in a non-strict way.
 ///
 /// # Examples
 ///
@@ -48,6 +48,39 @@ pub fn parse_playlist(input: &[u8]) -> IResult<&[u8], Playlist> {
 
     match is_master_playlist(input) {
         true => map(parse_master_playlist, Playlist::MasterPlaylist)(input),
+        false => map(parse_media_playlist, Playlist::MediaPlaylist)(input),
+    }
+}
+
+/// Parse an m3u8 playlist in a strict way.
+///
+/// # Examples
+///
+/// ```
+/// use std::io::Read;
+/// use m3u8_rs::Playlist;
+///
+/// let mut file = std::fs::File::open("playlist.m3u8").unwrap();
+/// let mut bytes: Vec<u8> = Vec::new();
+/// file.read_to_end(&mut bytes).unwrap();
+///
+/// let parsed = m3u8_rs::parse_playlist_strict(&bytes);
+///
+/// let playlist = match parsed {
+///     Result::Ok((i, playlist)) => playlist,
+///     Result::Err(e) => panic!("Parsing error: \n{}", e),
+/// };
+///
+/// match playlist {
+///     Playlist::MasterPlaylist(pl) => println!("Master playlist:\n{:?}", pl),
+///     Playlist::MediaPlaylist(pl) => println!("Media playlist:\n{:?}", pl),
+/// }
+/// ```
+pub fn parse_playlist_strict(input: &[u8]) -> IResult<&[u8], Playlist> {
+    m3u_tag(input)?;
+
+    match is_master_playlist(input) {
+        true => map(parse_master_playlist_strict, Playlist::MasterPlaylist)(input),
         false => map(parse_media_playlist, Playlist::MediaPlaylist)(input),
     }
 }
@@ -81,12 +114,52 @@ pub fn parse_playlist_res(input: &[u8]) -> Result<Playlist, nom::Err<nom::error:
     }
 }
 
-/// Parse input as a master playlist
+/// Parses an m3u8 playlist just like `parse_playlist_strict`, except that this returns an [std::result::Result](std::result::Result) instead of a [nom::IResult](https://docs.rs/nom/1.2.3/nom/enum.IResult.html).
+/// However, since [nom::IResult](nom::IResult) is now an [alias to Result](https://github.com/Geal/nom/blob/master/doc/upgrading_to_nom_5.md), this is no longer needed.
+///
+/// # Examples
+///
+/// ```
+/// use m3u8_rs::Playlist;
+/// use std::io::Read;
+///
+/// let mut file = std::fs::File::open("playlist.m3u8").unwrap();
+/// let mut bytes: Vec<u8> = Vec::new();
+/// file.read_to_end(&mut bytes).unwrap();
+///
+/// let parsed = m3u8_rs::parse_playlist_strict_res(&bytes);
+///
+/// match parsed {
+///     Ok(Playlist::MasterPlaylist(pl)) => println!("Master playlist:\n{:?}", pl),
+///     Ok(Playlist::MediaPlaylist(pl)) => println!("Media playlist:\n{:?}", pl),
+///     Err(e) => println!("Error: {:?}", e)
+/// }
+/// ```
+pub fn parse_playlist_strict_res(
+    input: &[u8],
+) -> Result<Playlist, nom::Err<nom::error::Error<&[u8]>>> {
+    let parse_result = parse_playlist_strict(input);
+    match parse_result {
+        IResult::Ok((_, playlist)) => Ok(playlist),
+        IResult::Err(err) => Err(err),
+    }
+}
+
+/// Parse input as a master playlist in a non-strict way
 pub fn parse_master_playlist(input: &[u8]) -> IResult<&[u8], MasterPlaylist> {
+    parse_master_playlist2(input, false)
+}
+
+/// Parse input as a master playlist in a strict way
+pub fn parse_master_playlist_strict(input: &[u8]) -> IResult<&[u8], MasterPlaylist> {
+    parse_master_playlist2(input, true)
+}
+
+fn parse_master_playlist2(input: &[u8], strict: bool) -> IResult<&[u8], MasterPlaylist> {
     map(
         pair(
             complete(pair(m3u_tag, multispace0)),
-            parse_master_playlist_tags,
+            parse_master_playlist_tags(strict),
         ),
         |(_, tags)| master_playlist_from_tags(tags),
     )(input)
@@ -190,21 +263,25 @@ fn is_master_playlist_tag_line(i: &[u8]) -> IResult<&[u8], Option<(bool, String)
 // Master Playlist Tags
 // -----------------------------------------------------------------------------------------------
 
-fn parse_master_playlist_tags(i: &[u8]) -> IResult<&[u8], Vec<MasterPlaylistTag>> {
-    map(
-        tuple((
-            many0(complete(map(
-                pair(master_playlist_tag, multispace0),
-                |(tag, _)| tag,
-            ))),
-            opt(eof),
-        )),
-        |(tags, _)| {
-            let mut tags_rev: Vec<MasterPlaylistTag> = tags;
-            tags_rev.reverse();
-            tags_rev
-        },
-    )(i)
+fn parse_master_playlist_tags<'a>(
+    strict: bool,
+) -> impl nom::Parser<&'a [u8], Vec<MasterPlaylistTag>, nom::error::Error<&'a [u8]>> {
+    move |i: &'a [u8]| -> IResult<&'a [u8], Vec<MasterPlaylistTag>> {
+        map(
+            tuple((
+                many0(complete(map(
+                    pair(master_playlist_tag(strict), multispace0),
+                    move |(tag, _)| tag,
+                ))),
+                opt(eof),
+            )),
+            move |(tags, _)| {
+                let mut tags_rev: Vec<MasterPlaylistTag> = tags;
+                tags_rev.reverse();
+                tags_rev
+            },
+        )(i)
+    }
 }
 
 /// Contains all the tags required to parse a master playlist.
@@ -223,25 +300,32 @@ enum MasterPlaylistTag {
     Unknown(ExtTag),
 }
 
-fn master_playlist_tag(i: &[u8]) -> IResult<&[u8], MasterPlaylistTag> {
-    // Don't accept empty inputs here
-    peek(take(1usize))(i)?;
+fn master_playlist_tag<'a>(
+    strict: bool,
+) -> impl nom::Parser<&'a [u8], MasterPlaylistTag, nom::error::Error<&'a [u8]>> {
+    move |i: &'a [u8]| -> IResult<&'a [u8], MasterPlaylistTag> {
+        // Don't accept empty inputs here
+        peek(take(1usize))(i)?;
 
-    alt((
-        map(version_tag, MasterPlaylistTag::Version),
-        map(variant_stream_tag, MasterPlaylistTag::VariantStream),
-        map(variant_i_frame_stream_tag, MasterPlaylistTag::VariantStream),
-        map(alternative_media_tag, MasterPlaylistTag::AlternativeMedia),
-        map(session_data_tag, MasterPlaylistTag::SessionData),
-        map(session_key_tag, MasterPlaylistTag::SessionKey),
-        map(start_tag, MasterPlaylistTag::Start),
-        map(tag("#EXT-X-INDEPENDENT-SEGMENTS"), |_| {
-            MasterPlaylistTag::IndependentSegments
-        }),
-        map(ext_tag, MasterPlaylistTag::Unknown),
-        map(comment_tag, MasterPlaylistTag::Comment),
-        map(consume_line, MasterPlaylistTag::Uri),
-    ))(i)
+        alt((
+            map(version_tag, MasterPlaylistTag::Version),
+            map(variant_stream_tag, MasterPlaylistTag::VariantStream),
+            map(variant_i_frame_stream_tag, MasterPlaylistTag::VariantStream),
+            map(
+                alternative_media_tag(strict),
+                MasterPlaylistTag::AlternativeMedia,
+            ),
+            map(session_data_tag, MasterPlaylistTag::SessionData),
+            map(session_key_tag, MasterPlaylistTag::SessionKey),
+            map(start_tag, MasterPlaylistTag::Start),
+            map(tag("#EXT-X-INDEPENDENT-SEGMENTS"), move |_| {
+                MasterPlaylistTag::IndependentSegments
+            }),
+            map(ext_tag, MasterPlaylistTag::Unknown),
+            map(comment_tag, MasterPlaylistTag::Comment),
+            map(consume_line, MasterPlaylistTag::Uri),
+        ))(i)
+    }
 }
 
 fn master_playlist_from_tags(mut tags: Vec<MasterPlaylistTag>) -> MasterPlaylist {
@@ -299,10 +383,15 @@ fn variant_i_frame_stream_tag(i: &[u8]) -> IResult<&[u8], VariantStream> {
     )(i)
 }
 
-fn alternative_media_tag(i: &[u8]) -> IResult<&[u8], AlternativeMedia> {
-    map_res(pair(tag("#EXT-X-MEDIA:"), key_value_pairs), |(_, media)| {
-        AlternativeMedia::from_hashmap(media)
-    })(i)
+fn alternative_media_tag<'a>(
+    strict: bool,
+) -> impl nom::Parser<&'a [u8], AlternativeMedia, nom::error::Error<&'a [u8]>> {
+    move |i: &'a [u8]| -> IResult<&'a [u8], AlternativeMedia> {
+        map_res(
+            pair(tag("#EXT-X-MEDIA:"), key_value_pairs),
+            move |(_, media)| AlternativeMedia::from_hashmap(media, strict),
+        )(i)
+    }
 }
 
 fn session_data_tag(i: &[u8]) -> IResult<&[u8], SessionData> {
