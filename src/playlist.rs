@@ -27,6 +27,23 @@ macro_rules! write_some_attribute_quoted {
     };
 }
 
+macro_rules! write_some_float_attribute {
+    ($w:expr, $tag:expr, $o:expr) => {
+        if let &Some(ref v) = $o {
+            match WRITE_OPT_FLOAT_PRECISION.load(Ordering::Relaxed) {
+                MAX => {
+                    write!($w, "{}={}", $tag, v)
+                }
+                precision => {
+                    write!($w, "{}={:.*}", $tag, precision, v)
+                }
+            }
+        } else {
+            Ok(())
+        }
+    };
+}
+
 macro_rules! write_some_attribute {
     ($w:expr, $tag:expr, $o:expr) => {
         if let &Some(ref v) = $o {
@@ -736,6 +753,13 @@ pub struct MediaPlaylist {
     pub independent_segments: bool,
     /// Unknown tags before the first media segment
     pub unknown_tags: Vec<ExtTag>,
+
+    // LL-HLS specific fields
+    pub server_control: Option<ServerControl>,
+    pub part_inf: Option<PartInf>,
+    pub skip: Option<Skip>,
+    pub preload_hint: Option<PreloadHint>,
+    pub rendition_report: Option<RenditionReport>,
 }
 
 impl MediaPlaylist {
@@ -748,6 +772,22 @@ impl MediaPlaylist {
         if self.independent_segments {
             writeln!(w, "#EXT-X-INDEPENDENT-SEGMENTS")?;
         }
+        if let Some(ref server_control) = self.server_control {
+            server_control.write_to(w)?;
+        }
+        if let Some(ref part_inf) = self.part_inf {
+            part_inf.write_to(w)?;
+        }
+        if let Some(ref skip) = self.skip {
+            skip.write_to(w)?;
+        }
+        if let Some(ref preload_hint) = self.preload_hint {
+            preload_hint.write_to(w)?;
+        }
+        if let Some(ref rendition_report) = self.rendition_report {
+            rendition_report.write_to(w)?;
+        }
+
         writeln!(w, "#EXT-X-TARGETDURATION:{}", self.target_duration)?;
 
         if self.media_sequence != 0 {
@@ -774,6 +814,10 @@ impl MediaPlaylist {
         }
         if self.end_list {
             writeln!(w, "#EXT-X-ENDLIST")?;
+        }
+
+        for unknown_tag in &self.unknown_tags {
+            writeln!(w, "{}", unknown_tag)?;
         }
 
         Ok(())
@@ -847,6 +891,9 @@ pub struct MediaSegment {
     pub daterange: Option<DateRange>,
     /// `#EXT-`
     pub unknown_tags: Vec<ExtTag>,
+
+    // LL-HLS specific fields
+    pub parts: Vec<Part>,
 }
 
 impl MediaSegment {
@@ -884,6 +931,9 @@ impl MediaSegment {
             write!(w, "#EXT-X-DATERANGE:")?;
             v.write_attributes_to(w)?;
             writeln!(w)?;
+        }
+        for part in &self.parts {
+            part.write_to(w)?;
         }
         for unknown_tag in &self.unknown_tags {
             writeln!(w, "{}", unknown_tag)?;
@@ -1048,6 +1098,37 @@ impl ByteRange {
     }
 }
 
+impl Display for ByteRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.length)?;
+        if let Some(offset) = self.offset {
+            write!(f, "@{}", offset)?;
+        }
+        Ok(())
+    }
+}
+
+impl FromStr for ByteRange {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<ByteRange, String> {
+        let mut parts = s.split('@');
+        let length = parts
+            .next()
+            .ok_or_else(|| String::from("Invalid BYTERANGE format"))?
+            .parse::<u64>()
+            .map_err(|err| format!("Failed to parse length in BYTERANGE: {}", err))?;
+        let offset = parts
+            .next()
+            .map(|o| {
+                o.parse::<u64>()
+                    .map_err(|err| format!("Failed to parse offset in BYTERANGE: {}", err))
+            })
+            .transpose()?;
+        Ok(ByteRange { length, offset })
+    }
+}
+
 /// [`#EXT-X-DATERANGE:<attribute-list>`](https://tools.ietf.org/html/draft-pantos-http-live-streaming-19#section-4.3.2.7)
 ///
 /// The EXT-X-DATERANGE tag associates a Date Range (i.e. a range of time
@@ -1125,8 +1206,8 @@ impl DateRange {
             ",END-DATE",
             &self.end_date.as_ref().map(|dt| dt.to_rfc3339())
         )?;
-        write_some_attribute!(w, ",DURATION", &self.duration)?;
-        write_some_attribute!(w, ",PLANNED-DURATION", &self.planned_duration)?;
+        write_some_float_attribute!(w, ",DURATION", &self.duration)?;
+        write_some_float_attribute!(w, ",PLANNED-DURATION", &self.planned_duration)?;
         if let Some(x_prefixed) = &self.x_prefixed {
             for (name, attr) in x_prefixed {
                 write!(w, ",{}={}", name, attr)?;
@@ -1141,6 +1222,253 @@ impl DateRange {
             }
         }
         Ok(())
+    }
+}
+
+// Implementing structs for LL-HLS
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct ServerControl {
+    pub can_skip_until: Option<f64>,
+    pub can_skip_dateranges: bool,
+    pub hold_back: Option<f64>,
+    pub part_hold_back: Option<f64>,
+    pub can_block_reload: bool,
+}
+
+impl ServerControl {
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<ServerControl, String> {
+        let can_skip_until = unquoted_string_parse!(attrs, "CAN-SKIP-UNTIL", |s: &str| s
+            .parse::<f64>()
+            .map_err(|err| format!("Failed to parse CAN-SKIP-UNTIL attribute: {}", err)));
+        let can_skip_dateranges = is_yes!(attrs, "CAN-SKIP-DATERANGES");
+        if can_skip_dateranges && can_skip_until.is_none() {
+            return Err(String::from(
+                "CAN-SKIP-DATERANGES attribute must be used with CAN-SKIP-UNTIL attribute",
+            ));
+        }
+        let hold_back = unquoted_string_parse!(attrs, "HOLD-BACK", |s: &str| s
+            .parse::<f64>()
+            .map_err(|err| format!("Failed to parse HOLD-BACK attribute: {}", err)));
+        let part_hold_back = unquoted_string_parse!(attrs, "PART-HOLD-BACK", |s: &str| s
+            .parse::<f64>()
+            .map_err(|err| format!("Failed to parse PART-HOLD-BACK attribute: {}", err)));
+        let can_block_reload = is_yes!(attrs, "CAN-BLOCK-RELOAD");
+
+        Ok(ServerControl {
+            can_skip_until,
+            can_skip_dateranges,
+            hold_back,
+            part_hold_back,
+            can_block_reload,
+        })
+    }
+
+    pub(crate) fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
+        write!(w, "#EXT-X-SERVER-CONTROL:")?;
+        write_some_float_attribute!(w, "CAN-SKIP-UNTIL", &self.can_skip_until)?;
+        if self.can_skip_dateranges {
+            write!(w, ",CAN-SKIP-DATERANGES=YES")?;
+        }
+        write_some_float_attribute!(w, ",HOLD-BACK", &self.hold_back)?;
+        write_some_float_attribute!(w, ",PART-HOLD-BACK", &self.part_hold_back)?;
+        if self.can_block_reload {
+            write!(w, ",CAN-BLOCK-RELOAD=YES")?;
+        }
+        writeln!(w)
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct PartInf {
+    pub part_target: f64,
+}
+
+impl PartInf {
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<PartInf, String> {
+        let part_target = unquoted_string_parse!(attrs, "PART-TARGET", |s: &str| s
+            .parse::<f64>()
+            .map_err(|err| format!("Failed to parse PART-TARGET attribute: {}", err)))
+        .ok_or_else(|| String::from("EXT-X-PART-INF without mandatory PART-TARGET attribute"))?;
+
+        Ok(PartInf { part_target })
+    }
+
+    pub(crate) fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
+        match WRITE_OPT_FLOAT_PRECISION.load(Ordering::Relaxed) {
+            MAX => {
+                write!(w, "#EXT-X-PART-INF:PART-TARGET={}", self.part_target)?;
+            }
+            n => {
+                write!(w, "#EXT-X-PART-INF:PART-TARGET={:.*}", n, self.part_target)?;
+            }
+        };
+
+        writeln!(w)
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct Part {
+    pub uri: String,
+    pub duration: f64,
+    pub independent: bool,
+    pub gap: bool,
+    pub byte_range: Option<ByteRange>,
+}
+
+impl Part {
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<Part, String> {
+        let uri = quoted_string!(attrs, "URI")
+            .ok_or_else(|| String::from("EXT-X-PART without mandatory URI attribute"))?;
+        let duration = unquoted_string_parse!(attrs, "DURATION", |s: &str| s
+            .parse::<f64>()
+            .map_err(|err| format!("Failed to parse DURATION attribute: {}", err)))
+        .ok_or_else(|| String::from("EXT-X-PART without mandatory DURATION attribute"))?;
+        let independent = is_yes!(attrs, "INDEPENDENT");
+        let gap = is_yes!(attrs, "GAP");
+        let byte_range = quoted_string_parse!(attrs, "BYTERANGE", |s: &str| s.parse::<ByteRange>());
+
+        Ok(Part {
+            uri,
+            duration,
+            independent,
+            gap,
+            byte_range,
+        })
+    }
+
+    pub(crate) fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
+        match WRITE_OPT_FLOAT_PRECISION.load(Ordering::Relaxed) {
+            MAX => {
+                write!(
+                    w,
+                    "#EXT-X-PART:URI=\"{}\",DURATION={}",
+                    self.uri, self.duration
+                )?;
+            }
+            n => {
+                write!(
+                    w,
+                    "#EXT-X-PART:URI=\"{}\",DURATION={:.*}",
+                    self.uri, n, self.duration
+                )?;
+            }
+        };
+        if self.independent {
+            write!(w, ",INDEPENDENT=YES")?;
+        }
+        if self.gap {
+            write!(w, ",GAP=YES")?;
+        }
+        if let Some(ref byte_range) = self.byte_range {
+            write!(w, ",BYTERANGE=\"")?;
+            byte_range.write_value_to(w)?;
+            write!(w, "\"")?;
+        }
+        writeln!(w)
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct Skip {
+    pub skipped_segments: u64,
+}
+
+impl Skip {
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<Skip, String> {
+        let skipped_segments = unquoted_string_parse!(attrs, "SKIPPED-SEGMENTS", |s: &str| s
+            .parse::<u64>()
+            .map_err(|err| format!("Failed to parse SKIPPED-SEGMENTS attribute: {}", err)))
+        .ok_or_else(|| String::from("EXT-X-SKIP without mandatory SKIPPED-SEGMENTS attribute"))?;
+
+        Ok(Skip { skipped_segments })
+    }
+
+    pub(crate) fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
+        write!(w, "#EXT-X-SKIP:SKIPPED-SEGMENTS={}", self.skipped_segments)?;
+        writeln!(w)
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct PreloadHint {
+    pub hint_type: String,
+    pub uri: String,
+    pub byte_range: Option<ByteRange>,
+}
+
+impl PreloadHint {
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<PreloadHint, String> {
+        let hint_type = unquoted_string!(attrs, "TYPE")
+            .ok_or_else(|| String::from("EXT-X-PRELOAD-HINT without mandatory TYPE attribute"))?;
+        let uri = quoted_string!(attrs, "URI")
+            .ok_or_else(|| String::from("EXT-X-PRELOAD-HINT without mandatory URI attribute"))?;
+        let byte_range = quoted_string_parse!(attrs, "BYTERANGE", |s: &str| s.parse::<ByteRange>());
+        Ok(PreloadHint {
+            hint_type,
+            uri,
+            byte_range,
+        })
+    }
+
+    pub(crate) fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
+        write!(
+            w,
+            "#EXT-X-PRELOAD-HINT:TYPE={},URI=\"{}\"",
+            self.hint_type, self.uri
+        )?;
+        if let Some(ref byte_range) = self.byte_range {
+            write!(w, ",BYTERANGE=\"")?;
+            byte_range.write_value_to(w)?;
+            write!(w, "\"")?;
+        }
+        writeln!(w)
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct RenditionReport {
+    pub uri: String,
+    pub last_msn: Option<u64>,
+    pub last_part: Option<u64>,
+}
+
+impl RenditionReport {
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<RenditionReport, String> {
+        let uri = quoted_string!(attrs, "URI").ok_or_else(|| {
+            String::from("EXT-X-RENDITION-REPORT without mandatory URI attribute")
+        })?;
+        let last_msn = unquoted_string_parse!(attrs, "LAST-MSN", |s: &str| s
+            .parse::<u64>()
+            .map_err(|err| format!("Failed to parse LAST-MSN attribute: {}", err)));
+        let last_part = unquoted_string_parse!(attrs, "LAST-PART", |s: &str| s
+            .parse::<u64>()
+            .map_err(|err| format!("Failed to parse LAST-PART attribute: {}", err)));
+
+        Ok(RenditionReport {
+            uri,
+            last_msn,
+            last_part,
+        })
+    }
+
+    pub(crate) fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
+        write!(w, "#EXT-X-RENDITION-REPORT:URI=\"{}\"", self.uri)?;
+        write_some_attribute!(w, ",LAST-MSN", &self.last_msn)?;
+        write_some_attribute!(w, ",LAST-PART", &self.last_part)?;
+        writeln!(w)
     }
 }
 

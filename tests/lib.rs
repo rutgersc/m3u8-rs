@@ -416,6 +416,12 @@ fn create_and_parse_media_playlist_full() {
             ..Default::default()
         }],
         unknown_tags: vec![],
+
+        server_control: Default::default(),
+        part_inf: Default::default(),
+        skip: Default::default(),
+        preload_hint: Default::default(),
+        rendition_report: Default::default(),
     });
     let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
     assert_eq!(playlist_original, playlist_parsed);
@@ -469,4 +475,119 @@ fn parsing_binary_data_should_fail_cleanly() {
     let res = parse_master_playlist_res(&data);
 
     assert!(res.is_err());
+}
+#[test]
+fn create_and_parse_media_playlist_llhls() {
+    let mut playlist_original = Playlist::MediaPlaylist(MediaPlaylist {
+        version: Some(9),
+        target_duration: 2,
+        media_sequence: 338559,
+        discontinuity_sequence: 1234,
+        end_list: false,
+        playlist_type: Some(MediaPlaylistType::Event),
+        i_frames_only: false,
+        start: Some(Start {
+            time_offset: "9999".parse().unwrap(),
+            precise: Some(true),
+            other_attributes: Default::default(),
+        }),
+        independent_segments: true,
+        segments: vec![MediaSegment {
+            uri: "20140311T113819-01-338559live.ts".into(),
+            duration: 2.002,
+            title: Some("338559".into()),
+            byte_range: Some(ByteRange {
+                length: 137116,
+                offset: Some(4559),
+            }),
+            discontinuity: true,
+            key: Some(Key {
+                method: KeyMethod::None,
+                uri: Some("https://secure.domain.com".into()),
+                iv: Some("0xb059217aa2649ce170b734".into()),
+                keyformat: Some("xXkeyformatXx".into()),
+                keyformatversions: Some("xXFormatVers".into()),
+            }),
+            map: Some(Map {
+                uri: "www.map-uri.com".into(),
+                byte_range: Some(ByteRange {
+                    length: 137116,
+                    offset: Some(4559),
+                }),
+                other_attributes: Default::default(),
+            }),
+            program_date_time: Some(
+                chrono::FixedOffset::east(8 * 3600)
+                    .ymd(2010, 2, 19)
+                    .and_hms_milli(14, 54, 23, 31),
+            ),
+            daterange: Some(DateRange {
+                id: "9999".into(),
+                class: Some("class".into()),
+                start_date: chrono::FixedOffset::east(8 * 3600)
+                    .ymd(2010, 2, 19)
+                    .and_hms_milli(14, 54, 23, 31),
+                end_date: None,
+                duration: None,
+                planned_duration: Some("40.000".parse().unwrap()),
+                x_prefixed: Some(HashMap::from([(
+                    "X-client-attribute".into(),
+                    "whatever".into(),
+                )])),
+                end_on_next: false,
+                other_attributes: Default::default(),
+            }),
+            unknown_tags: vec![],
+            parts: vec![
+                Part {
+                    uri: "part0.ts".into(),
+                    duration: 0.5,
+                    independent: true,
+                    gap: false,
+                    byte_range: Some(ByteRange {
+                        length: 50000,
+                        offset: Some(0),
+                    }),
+                },
+                Part {
+                    uri: "part1.ts".into(),
+                    duration: 0.5,
+                    independent: false,
+                    gap: false,
+                    byte_range: Some(ByteRange {
+                        length: 50000,
+                        offset: Some(50000),
+                    }),
+                },
+            ],
+            ..Default::default()
+        }],
+        unknown_tags: vec![],
+        server_control: Some(ServerControl {
+            can_skip_until: Some(12.0),
+            can_skip_dateranges: false,
+            hold_back: Some(3.0),
+            part_hold_back: Some(1.5),
+            can_block_reload: true,
+        }),
+        part_inf: Some(PartInf { part_target: 0.5 }),
+        skip: Some(Skip {
+            skipped_segments: 3,
+        }),
+        preload_hint: Some(PreloadHint {
+            hint_type: "PART".into(),
+            uri: "next_part.ts".into(),
+            byte_range: Some(ByteRange {
+                length: 50000,
+                offset: Some(100000),
+            }),
+        }),
+        rendition_report: Some(RenditionReport {
+            uri: "rendition.m3u8".into(),
+            last_msn: Some(338559),
+            last_part: Some(1),
+        }),
+    });
+    let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
+    assert_eq!(playlist_original, playlist_parsed);
 }
