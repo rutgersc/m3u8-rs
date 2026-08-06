@@ -526,11 +526,10 @@ fn duration_title_tag(i: &[u8]) -> IResult<&[u8], (f32, Option<String>)> {
         tuple((
             float,
             opt(char(',')),
-            opt(map_res(is_not("\r\n,"), from_utf8_slice)),
+            opt(map_res(is_not("\r\n"), from_utf8_slice)),
             take(1usize),
-            opt(char(',')),
         )),
-        |(duration, _, title, _, _)| (duration, title),
+        |(duration, _, title, _)| (duration, title),
     )(i)
 }
 
@@ -992,6 +991,25 @@ mod tests {
         assert_eq!(
             duration_title_tag(b"2.002,title\nrest"),
             Result::Ok(("rest".as_bytes(), (2.002f32, Some("title".to_string()))))
+        );
+    }
+
+    #[test]
+    fn parse_duration_title_with_commas() {
+        assert_eq!(
+            duration_title_tag(b"2.002,title,with,commas\nrest"),
+            Result::Ok((
+                "rest".as_bytes(),
+                (2.002f32, Some("title,with,commas".to_string()))
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_duration_title_without_title() {
+        assert_eq!(
+            duration_title_tag(b"2.002\nrest"),
+            Result::Ok(("rest".as_bytes(), (2.002f32, None)))
         );
     }
 
