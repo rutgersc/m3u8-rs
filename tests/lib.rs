@@ -89,6 +89,29 @@ fn playlist_media_without_segments() {
 }
 
 #[test]
+fn playlist_media_multiple_rendition_reports() {
+    let input: String = get_sample_playlist("mediaplaylist-multiple-rendition-reports.m3u8");
+    let parsed = parse_playlist(input.as_bytes());
+    
+    if let Ok((_, Playlist::MediaPlaylist(playlist))) = parsed {
+        assert_eq!(playlist.rendition_reports.len(), 3);
+        assert_eq!(playlist.rendition_reports[0].uri, "playlist_1.m3u8");
+        assert_eq!(playlist.rendition_reports[0].last_msn, Some(1));
+        assert_eq!(playlist.rendition_reports[0].last_part, Some(8));
+        
+        assert_eq!(playlist.rendition_reports[1].uri, "playlist_2.m3u8");
+        assert_eq!(playlist.rendition_reports[1].last_msn, Some(2));
+        assert_eq!(playlist.rendition_reports[1].last_part, Some(5));
+        
+        assert_eq!(playlist.rendition_reports[2].uri, "playlist_3.m3u8");
+        assert_eq!(playlist.rendition_reports[2].last_msn, Some(3));
+        assert_eq!(playlist.rendition_reports[2].last_part, None);
+    } else {
+        panic!("Failed to parse playlist or wrong playlist type");
+    }
+}
+
+#[test]
 fn playlist_media_with_cues() {
     assert!(print_parse_playlist_test("media-playlist-with-cues.m3u8"));
 }
@@ -373,13 +396,13 @@ fn create_and_parse_media_playlist_full() {
                 offset: Some(4559),
             }),
             discontinuity: true,
-            key: Some(Key {
+            keys: vec![Key {
                 method: KeyMethod::None,
                 uri: Some("https://secure.domain.com".into()),
                 iv: Some("0xb059217aa2649ce170b734".into()),
                 keyformat: Some("xXkeyformatXx".into()),
                 keyformatversions: Some("xXFormatVers".into()),
-            }),
+            }],
             map: Some(Map {
                 uri: "www.map-uri.com".into(),
                 byte_range: Some(ByteRange {
@@ -416,6 +439,13 @@ fn create_and_parse_media_playlist_full() {
             ..Default::default()
         }],
         unknown_tags: vec![],
+
+        server_control: Default::default(),
+        part_inf: Default::default(),
+        skip: Default::default(),
+        preload_hint: Default::default(),
+        rendition_reports: Default::default(),
+        parts: Default::default(),
     });
     let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
     assert_eq!(playlist_original, playlist_parsed);
