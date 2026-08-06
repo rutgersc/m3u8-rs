@@ -976,7 +976,7 @@ impl Key {
 
         let uri = quoted_string!(attrs, "URI");
         let iv = unquoted_string!(attrs, "IV");
-        if method == KeyMethod::None && iv.is_none() {
+        if method != KeyMethod::None && iv.is_none() {
             return Err("IV is required unless METHOD is NONE".parse().unwrap());
         }
         let keyformat = quoted_string!(attrs, "KEYFORMAT");
@@ -1239,5 +1239,18 @@ mod test {
             std::str::from_utf8(output.as_slice()).unwrap(),
             "#EXT-X-CUE-IN"
         )
+    }
+
+    #[test]
+    fn key_none_method_parsing() {
+        let key = Key::from_hashmap(
+            vec![("METHOD".into(), QuotedOrUnquoted::Unquoted("NONE".into()))]
+                .into_iter()
+                .collect(),
+        );
+
+        assert!(key.is_ok());
+        let key = key.unwrap();
+        assert_eq!(key.method, KeyMethod::None);
     }
 }
