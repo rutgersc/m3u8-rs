@@ -373,13 +373,22 @@ fn create_and_parse_media_playlist_full() {
                 offset: Some(4559),
             }),
             discontinuity: true,
-            key: Some(Key {
-                method: KeyMethod::None,
-                uri: Some("https://secure.domain.com".into()),
-                iv: Some("0xb059217aa2649ce170b734".into()),
-                keyformat: Some("xXkeyformatXx".into()),
-                keyformatversions: Some("xXFormatVers".into()),
-            }),
+            keys: vec![
+                Key {
+                    method: KeyMethod::None,
+                    uri: Some("https://secure.domain.com".into()),
+                    iv: Some("0xb059217aa2649ce170b734".into()),
+                    keyformat: Some("xXkeyformatXx".into()),
+                    keyformatversions: Some("xXFormatVers".into()),
+                },
+                Key {
+                    method: KeyMethod::AES128,
+                    uri: Some("skd://c2VjdXJlLmRvbWFpbi5jb20=".into()),
+                    iv: Some("0xb059217aa2649ce170b734".into()),
+                    keyformat: Some("com.apple.streamingkeydelivery".into()),
+                    keyformatversions: Some("1".into()),
+                },
+            ],
             map: Some(Map {
                 uri: "www.map-uri.com".into(),
                 byte_range: Some(ByteRange {

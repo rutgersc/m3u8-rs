@@ -838,7 +838,7 @@ pub struct MediaSegment {
     /// `#EXT-X-DISCONTINUITY`
     pub discontinuity: bool,
     /// `#EXT-X-KEY:<attribute-list>`
-    pub key: Option<Key>,
+    pub keys: Vec<Key>,
     /// `#EXT-X-MAP:<attribute-list>`
     pub map: Option<Map>,
     /// `#EXT-X-PROGRAM-DATE-TIME:<YYYY-MM-DDThh:mm:ssZ>`
@@ -868,7 +868,7 @@ impl MediaSegment {
         if self.discontinuity {
             writeln!(w, "#EXT-X-DISCONTINUITY")?;
         }
-        if let Some(ref key) = self.key {
+        for key in &self.keys {
             write!(w, "#EXT-X-KEY:")?;
             key.write_attributes_to(w)?;
             writeln!(w)?;
