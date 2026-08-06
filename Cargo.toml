@@ -5,7 +5,7 @@ authors = ["Rutger"]
 readme = "README.md"
 repository = "https://github.com/rutgersc/m3u8-rs"
 description = "A library for parsing m3u8 files (Apple's HTTP Live Streaming (HLS) protocol)."
-documentation = "https://rutgersc.github.io/doc/m3u8_rs/index.html"
+documentation = "https://docs.rs/m3u8-rs/latest/m3u8_rs/"
 license = "MIT"
 edition = "2018"
 
