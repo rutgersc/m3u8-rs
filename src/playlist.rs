@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::fmt::Display;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::usize::MAX;
@@ -155,6 +155,10 @@ pub enum Playlist {
 }
 
 impl Playlist {
+    /// Serializes the playlist to `writer`.
+    ///
+    /// Buffers inside the two concrete `write_to` implementations. Do
+    /// not add another buffer here, or the output gets buffered twice.
     pub fn write_to<T: Write>(&self, writer: &mut T) -> std::io::Result<()> {
         match *self {
             Playlist::MasterPlaylist(ref pl) => pl.write_to(writer),
@@ -187,7 +191,18 @@ impl MasterPlaylist {
         self.variants.iter_mut().rev().find(|v| !v.is_i_frame)
     }
 
-    pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
+    /// Serializes the master playlist to `writer`.
+    ///
+    /// The output is batched through an internal buffer so `writer`
+    /// sees a few large `write` calls instead of one call per tag
+    /// or attribute. Note that only the internal buffer is drained.
+    /// Caller's `writer` is not flushed and stays under the caller's
+    /// control.
+    pub fn write_to<T: Write>(&self, writer: &mut T) -> std::io::Result<()> {
+        // The buffer lives here and not in the `pub(crate)` tag writers
+        // below so a playlist is buffered exactly once.
+        let mut w = BufWriter::new(writer);
+
         writeln!(w, "#EXTM3U")?;
 
         if let Some(ref v) = self.version {
@@ -198,24 +213,29 @@ impl MasterPlaylist {
         }
 
         for alternative in &self.alternatives {
-            alternative.write_to(w)?;
+            alternative.write_to(&mut w)?;
         }
 
         for variant in &self.variants {
-            variant.write_to(w)?;
+            variant.write_to(&mut w)?;
         }
         for session_data in &self.session_data {
-            session_data.write_to(w)?;
+            session_data.write_to(&mut w)?;
         }
         for session_key in &self.session_key {
-            session_key.write_to(w)?;
+            session_key.write_to(&mut w)?;
         }
         if let Some(ref start) = self.start {
-            start.write_to(w)?;
+            start.write_to(&mut w)?;
         }
         for unknown_tag in &self.unknown_tags {
             writeln!(w, "{}", unknown_tag)?;
         }
+
+        // Drain the internal buffer into `writer`. Unlike `BufWriter::flush`,
+        // `into_inner` does not flush `writer`, so the caller keeps control of
+        // it.
+        w.into_inner()?;
 
         Ok(())
     }
@@ -739,7 +759,18 @@ pub struct MediaPlaylist {
 }
 
 impl MediaPlaylist {
-    pub fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
+    /// Serializes the media playlist to `writer`.
+    ///
+    /// The output is batched through an internal buffer so `writer`
+    /// sees a few large `write` calls instead of one call per tag
+    /// or attribute. Note that only the internal buffer is drained.
+    /// Caller's `writer` is not flushed and stays under the caller's
+    /// control.
+    pub fn write_to<T: Write>(&self, writer: &mut T) -> std::io::Result<()> {
+        // The buffer lives here and not in the `pub(crate)` tag writers
+        // below, so a playlist is buffered exactly once.
+        let mut w = BufWriter::new(writer);
+
         writeln!(w, "#EXTM3U")?;
 
         if let Some(ref v) = self.version {
@@ -767,14 +798,19 @@ impl MediaPlaylist {
             writeln!(w, "#EXT-X-I-FRAMES-ONLY")?;
         }
         if let Some(ref start) = self.start {
-            start.write_to(w)?;
+            start.write_to(&mut w)?;
         }
         for segment in &self.segments {
-            segment.write_to(w)?;
+            segment.write_to(&mut w)?;
         }
         if self.end_list {
             writeln!(w, "#EXT-X-ENDLIST")?;
         }
+
+        // Drain the internal buffer into `writer`. Unlike `BufWriter::flush`,
+        // `into_inner` does not flush `writer`, so the caller keeps control of
+        // it.
+        w.into_inner()?;
 
         Ok(())
     }
