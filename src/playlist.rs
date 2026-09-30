@@ -976,9 +976,6 @@ impl Key {
 
         let uri = quoted_string!(attrs, "URI");
         let iv = unquoted_string!(attrs, "IV");
-        if method == KeyMethod::None && iv.is_none() {
-            return Err("IV is required unless METHOD is NONE".parse().unwrap());
-        }
         let keyformat = quoted_string!(attrs, "KEYFORMAT");
         let keyformatversions = quoted_string!(attrs, "KEYFORMATVERSIONS");
 
@@ -1239,5 +1236,41 @@ mod test {
             std::str::from_utf8(output.as_slice()).unwrap(),
             "#EXT-X-CUE-IN"
         )
+    }
+
+    #[test]
+    fn key_none_after_aes128_is_not_inherited() {
+        // Regression test: the inverted IV guard made this tag fail to parse, which
+        // silently demoted it to an unknown tag. `MediaSegment::key` then stayed at
+        // `None` -- the spelling for "inherit the previous key" -- so the cleartext
+        // segment was decrypted with the stale AES-128 key.
+        let text = "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXT-X-KEY:METHOD=AES-128,URI=\"k.bin\",IV=0x1\n#EXTINF:10,\na.ts\n#EXT-X-KEY:METHOD=NONE\n#EXTINF:10,\nb.ts\n";
+        let (_, playlist) = crate::parse_playlist(text.as_bytes()).expect("playlist should parse");
+        let media = match playlist {
+            Playlist::MediaPlaylist(p) => p,
+            _ => panic!("expected a media playlist"),
+        };
+
+        let encrypted = media.segments[0].key.as_ref().expect("AES-128 segment");
+        assert_eq!(encrypted.method, KeyMethod::AES128);
+
+        let cleartext = media.segments[1].key.as_ref().expect("METHOD=NONE segment");
+        assert_eq!(cleartext.method, KeyMethod::None);
+        assert!(media.segments[1].unknown_tags.is_empty());
+    }
+
+    #[test]
+    fn key_aes128_without_iv_is_parsed() {
+        // RFC 8216 section 5.2: when IV is absent the Media Sequence Number is used,
+        // so this spelling is valid and must keep parsing.
+        let text = "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXT-X-KEY:METHOD=AES-128,URI=\"k.bin\"\n#EXTINF:10,\na.ts\n";
+        let (_, playlist) = crate::parse_playlist(text.as_bytes()).expect("playlist should parse");
+        let media = match playlist {
+            Playlist::MediaPlaylist(p) => p,
+            _ => panic!("expected a media playlist"),
+        };
+        let key = media.segments[0].key.as_ref().expect("AES-128 segment");
+        assert_eq!(key.method, KeyMethod::AES128);
+        assert!(key.iv.is_none());
     }
 }
