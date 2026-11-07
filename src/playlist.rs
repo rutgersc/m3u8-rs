@@ -734,6 +734,8 @@ pub struct MediaPlaylist {
     pub start: Option<Start>,
     /// `#EXT-X-INDEPENDENT-SEGMENTS`
     pub independent_segments: bool,
+    /// `#EXT-X-SERVER-CONTROL`
+    pub server_control: Option<ServerControl>,
     /// Unknown tags before the first media segment
     pub unknown_tags: Vec<ExtTag>,
 }
@@ -750,6 +752,9 @@ impl MediaPlaylist {
         }
         writeln!(w, "#EXT-X-TARGETDURATION:{}", self.target_duration)?;
 
+        if let Some(ref server_control) = self.server_control {
+            server_control.write_to(w)?;
+        }
         if self.media_sequence != 0 {
             writeln!(w, "#EXT-X-MEDIA-SEQUENCE:{}", self.media_sequence)?;
         }
@@ -1185,6 +1190,88 @@ impl Start {
         writeln!(w)?;
 
         Ok(())
+    }
+}
+
+/// [`#EXT-X-SERVER-CONTROL:<attribute-list>`](https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-22#section-4.4.3.8)
+///
+/// The EXT-X-SERVER-CONTROL tag allows the Server to indicate support
+/// for Delivery Directives (blocking playlist reload, playlist delta
+/// updates) and to specify hold back distances for the Playlist.
+///
+/// Only `CAN-SKIP-DATERANGES` requiring `CAN-SKIP-UNTIL` is enforced. The
+/// following rules involve other tags and are not validated:
+/// - `CAN-SKIP-UNTIL` must be at least 6x `EXT-X-TARGETDURATION`
+/// - `HOLD-BACK` must be at least 3x `EXT-X-TARGETDURATION` and defaults to
+///   3x when absent
+/// - `PART-HOLD-BACK` must be at least 2x `PART-TARGET` and is required when
+///   `EXT-X-PART-INF` is present
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct ServerControl {
+    pub can_skip_until: Option<f64>,
+    /// Only valid when `can_skip_until` is set, otherwise it is not written
+    pub can_skip_dateranges: bool,
+    pub hold_back: Option<f64>,
+    pub part_hold_back: Option<f64>,
+    pub can_block_reload: bool,
+    pub other_attributes: Option<HashMap<String, QuotedOrUnquoted>>,
+}
+
+impl ServerControl {
+    pub(crate) fn from_hashmap(
+        mut attrs: HashMap<String, QuotedOrUnquoted>,
+    ) -> Result<ServerControl, String> {
+        let can_skip_until = unquoted_string_parse!(attrs, "CAN-SKIP-UNTIL", |s: &str| s
+            .parse::<f64>()
+            .map_err(|err| format!("Failed to parse CAN-SKIP-UNTIL attribute: {}", err)));
+        let can_skip_dateranges = is_yes!(attrs, "CAN-SKIP-DATERANGES");
+        if can_skip_dateranges && can_skip_until.is_none() {
+            return Err(String::from(
+                "CAN-SKIP-DATERANGES attribute requires the CAN-SKIP-UNTIL attribute",
+            ));
+        }
+        let hold_back = unquoted_string_parse!(attrs, "HOLD-BACK", |s: &str| s
+            .parse::<f64>()
+            .map_err(|err| format!("Failed to parse HOLD-BACK attribute: {}", err)));
+        let part_hold_back = unquoted_string_parse!(attrs, "PART-HOLD-BACK", |s: &str| s
+            .parse::<f64>()
+            .map_err(|err| format!("Failed to parse PART-HOLD-BACK attribute: {}", err)));
+        let can_block_reload = is_yes!(attrs, "CAN-BLOCK-RELOAD");
+        let other_attributes = if attrs.is_empty() { None } else { Some(attrs) };
+
+        Ok(ServerControl {
+            can_skip_until,
+            can_skip_dateranges,
+            hold_back,
+            part_hold_back,
+            can_block_reload,
+            other_attributes,
+        })
+    }
+
+    pub(crate) fn write_to<T: Write>(&self, w: &mut T) -> std::io::Result<()> {
+        let mut attrs: Vec<String> = Vec::new();
+        if let Some(v) = self.can_skip_until {
+            attrs.push(format!("CAN-SKIP-UNTIL={}", v));
+            if self.can_skip_dateranges {
+                attrs.push(String::from("CAN-SKIP-DATERANGES=YES"));
+            }
+        }
+        if let Some(v) = self.hold_back {
+            attrs.push(format!("HOLD-BACK={}", v));
+        }
+        if let Some(v) = self.part_hold_back {
+            attrs.push(format!("PART-HOLD-BACK={}", v));
+        }
+        if self.can_block_reload {
+            attrs.push(String::from("CAN-BLOCK-RELOAD=YES"));
+        }
+        if let Some(ref other_attributes) = self.other_attributes {
+            for (name, val) in other_attributes {
+                attrs.push(format!("{}={}", name, val));
+            }
+        }
+        writeln!(w, "#EXT-X-SERVER-CONTROL:{}", attrs.join(","))
     }
 }
 

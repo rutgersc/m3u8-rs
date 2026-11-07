@@ -179,6 +179,7 @@ fn is_master_playlist_tag_line(i: &[u8]) -> IResult<&[u8], Option<(bool, String)
                 map(tag("#EXT-X-MAP"), |t| (false, t)),
                 map(tag("#EXT-X-PROGRAM-DATE-TIME"), |t| (false, t)),
                 map(tag("#EXT-X-DATERANGE"), |t| (false, t)),
+                map(tag("#EXT-X-SERVER-CONTROL"), |t| (false, t)),
             ))),
             consume_line,
         )),
@@ -352,6 +353,7 @@ enum MediaPlaylistTag {
     IFramesOnly,
     Start(Start),
     IndependentSegments,
+    ServerControl(ServerControl),
 }
 
 fn media_playlist_tag(i: &[u8]) -> IResult<&[u8], MediaPlaylistTag> {
@@ -384,6 +386,7 @@ fn media_playlist_tag(i: &[u8]) -> IResult<&[u8], MediaPlaylistTag> {
             MediaPlaylistTag::IndependentSegments
         }),
         map(tag("#EXT-X-ENDLIST"), |_| MediaPlaylistTag::EndList),
+        map(server_control_tag, MediaPlaylistTag::ServerControl),
         map(media_segment_tag, MediaPlaylistTag::Segment),
     ))(i)
 }
@@ -422,6 +425,9 @@ fn media_playlist_from_tags(mut tags: Vec<MediaPlaylistTag>) -> MediaPlaylist {
             }
             MediaPlaylistTag::IndependentSegments => {
                 media_playlist.independent_segments = true;
+            }
+            MediaPlaylistTag::ServerControl(s) => {
+                media_playlist.server_control = Some(s);
             }
             MediaPlaylistTag::Segment(segment_tag) => match segment_tag {
                 SegmentTag::Extinf(d, t) => {
@@ -593,6 +599,13 @@ fn start_tag(i: &[u8]) -> IResult<&[u8], Start> {
     map_res(
         pair(tag("#EXT-X-START:"), key_value_pairs),
         |(_, attributes)| Start::from_hashmap(attributes),
+    )(i)
+}
+
+fn server_control_tag(i: &[u8]) -> IResult<&[u8], ServerControl> {
+    map_res(
+        pair(tag("#EXT-X-SERVER-CONTROL:"), key_value_pairs),
+        |(_, attributes)| ServerControl::from_hashmap(attributes),
     )(i)
 }
 
@@ -810,6 +823,28 @@ mod tests {
                     subtitles: None,
                     closed_captions: None,
                     other_attributes: Default::default(),
+                }
+            ))
+        );
+    }
+
+    // -----------------------------------------------------------------------------------------------
+    // Server control
+
+    #[test]
+    fn server_control() {
+        let input = b"#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,CAN-SKIP-UNTIL=24.0,PART-HOLD-BACK=3.012,HOLD-BACK=12\n";
+        assert_eq!(
+            server_control_tag(input),
+            Result::Ok((
+                "\n".as_bytes(),
+                ServerControl {
+                    can_skip_until: Some(24.0),
+                    can_skip_dateranges: false,
+                    hold_back: Some(12.0),
+                    part_hold_back: Some(3.012),
+                    can_block_reload: true,
+                    other_attributes: None,
                 }
             ))
         );
