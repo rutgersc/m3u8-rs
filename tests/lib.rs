@@ -364,6 +364,7 @@ fn create_and_parse_media_playlist_full() {
             other_attributes: Default::default(),
         }),
         independent_segments: true,
+        server_control: None,
         segments: vec![MediaSegment {
             uri: "20140311T113819-01-338559live.ts".into(),
             duration: 2.002,
@@ -419,6 +420,120 @@ fn create_and_parse_media_playlist_full() {
     });
     let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
     assert_eq!(playlist_original, playlist_parsed);
+}
+
+#[test]
+fn create_and_parse_media_playlist_server_control_full() {
+    let mut playlist_original = Playlist::MediaPlaylist(MediaPlaylist {
+        target_duration: 4,
+        server_control: Some(ServerControl {
+            can_skip_until: Some(24.0),
+            can_skip_dateranges: true,
+            hold_back: Some(12.0),
+            part_hold_back: Some(3.012),
+            can_block_reload: true,
+            other_attributes: Some(HashMap::from([(
+                "X-CUSTOM".into(),
+                QuotedOrUnquoted::Quoted("value".into()),
+            )])),
+        }),
+        ..Default::default()
+    });
+    let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
+    assert_eq!(playlist_original, playlist_parsed);
+}
+
+#[test]
+fn create_and_parse_media_playlist_server_control_block_reload_only() {
+    let mut playlist_original = Playlist::MediaPlaylist(MediaPlaylist {
+        target_duration: 4,
+        server_control: Some(ServerControl {
+            can_block_reload: true,
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+    let playlist_parsed = print_create_and_parse_playlist(&mut playlist_original);
+    assert_eq!(playlist_original, playlist_parsed);
+}
+
+fn write_media_playlist(playlist: &MediaPlaylist) -> String {
+    let mut v: Vec<u8> = Vec::new();
+    playlist.write_to(&mut v).unwrap();
+    String::from_utf8(v).unwrap()
+}
+
+#[test]
+fn write_server_control_has_no_leading_comma() {
+    let playlist = MediaPlaylist {
+        target_duration: 4,
+        server_control: Some(ServerControl {
+            hold_back: Some(12.0),
+            can_block_reload: true,
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let output = write_media_playlist(&playlist);
+    assert!(output
+        .lines()
+        .any(|l| l == "#EXT-X-SERVER-CONTROL:HOLD-BACK=12,CAN-BLOCK-RELOAD=YES"));
+}
+
+#[test]
+fn write_server_control_skips_dateranges_without_skip_until() {
+    let playlist = MediaPlaylist {
+        target_duration: 4,
+        server_control: Some(ServerControl {
+            can_skip_dateranges: true,
+            can_block_reload: true,
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let output = write_media_playlist(&playlist);
+    assert!(!output.contains("CAN-SKIP-DATERANGES"));
+    assert!(output
+        .lines()
+        .any(|l| l == "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES"));
+}
+
+#[test]
+fn parse_server_control_skip_dateranges_without_skip_until_is_unknown_tag() {
+    let input = "#EXTM3U\n\
+        #EXT-X-TARGETDURATION:4\n\
+        #EXT-X-SERVER-CONTROL:CAN-SKIP-DATERANGES=YES\n\
+        #EXTINF:4.0,\n\
+        segment.ts\n";
+    let playlist = parse_media_playlist_res(input.as_bytes()).unwrap();
+    assert_eq!(playlist.server_control, None);
+    assert_eq!(
+        playlist.segments[0].unknown_tags,
+        vec![ExtTag {
+            tag: "X-SERVER-CONTROL".into(),
+            rest: Some("CAN-SKIP-DATERANGES=YES".into()),
+        }]
+    );
+}
+
+#[test]
+fn parse_media_playlist_with_server_control() {
+    let input = get_sample_playlist("media-playlist-with-server-control.m3u8");
+    let playlist = parse_media_playlist_res(input.as_bytes()).unwrap();
+    assert_eq!(
+        playlist.server_control,
+        Some(ServerControl {
+            can_skip_until: Some(24.0),
+            can_skip_dateranges: false,
+            hold_back: Some(12.0),
+            part_hold_back: None,
+            can_block_reload: true,
+            other_attributes: None,
+        })
+    );
+    assert_eq!(playlist.target_duration, 4);
+    assert_eq!(playlist.media_sequence, 2680);
+    assert_eq!(playlist.segments.len(), 3);
 }
 
 //
